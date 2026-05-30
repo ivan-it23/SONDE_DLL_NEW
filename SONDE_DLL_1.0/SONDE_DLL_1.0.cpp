@@ -11,6 +11,7 @@
 #include "variable.h"
 #include "function.h"
 #include "bessel.h"
+#include "neuro_api.h"
 #include <thread>
 #include <chrono>
 #include <time.h>
@@ -164,6 +165,26 @@ SONDE_PARAM param[2][5] = { 0.0f, };
 bool  infcylp;//присутствие палеток icp
 bool  vzz2layerp;//присутствие палеток asp
 ID id;
+
+//     NEURO_TEST.dll
+HMODULE hNeuroDll = NULL;
+void* hNeuroPredictor = NULL;
+PFN_GeoPredictor_Create fnGeoPredictor_Create = nullptr;
+PFN_GeoPredictor_Predict fnGeoPredictor_Predict = nullptr;
+PFN_GeoPredictor_Destroy fnGeoPredictor_Destroy = nullptr;
+PFN_GeoPredictor_GetLastError fnGeoPredictor_GetLastError = nullptr;
+
+std::string GetDllDirectory() {
+	char path[MAX_PATH] = { 0 };
+	if (GetModuleFileNameA(NULL, path, MAX_PATH) > 0) {
+		std::string s(path);
+		size_t pos = s.find_last_of("\\/");
+		if (pos != std::string::npos) return s.substr(0, pos + 1);
+	}
+	return std::string();
+}
+//    .icp .asp (LWD_4Tx_NEW)
+/*
 //для компенсации влияния ЗП
 extern "C" __declspec(dllexport)  int create_inf_cyl_Pallete(const char *Metrology, const char *Vzz_inf_cyl_pallete_name , bool *start_stop, uint32_t *persent) {
 	return create_Vzz_inf_cyl_Pallete(Metrology, Vzz_inf_cyl_pallete_name, start_stop, persent);
@@ -172,13 +193,11 @@ extern "C" __declspec(dllexport)  int create_inf_cyl_Pallete(const char *Metrolo
 extern "C" __declspec(dllexport)  int create_vzz_2layer_Pallete(void *Metrology, void *Vzz_2layer_pallete_name, bool *start_stop, uint32_t *persent) {
 	return create_Vzz_2layer_Pallete((const char*)Metrology, (const char*)Vzz_2layer_pallete_name, start_stop, persent);
 }
+*/
 
 extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pallete_dir) {
 	int result = 0;
-	uint32_t result_icp = 0;
-	uint32_t result_asp = 0;
 	uint32_t  metro_signature = 0;
-	string *find_file_fullname = new string;
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			// открываем файл метрологии
 	if (EndsWith((const char*)Metrology, "bin")) {
@@ -194,8 +213,13 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pall
 		metro_signature = signature;
 		global_signature = signature;//повторение 
 		id = get_sonde_id(signature);
-		//по новому
-		if (id.type == LWD_4Tx_NEW || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
+		//     (LWD_4Tx_NEW) - временно добавляем поддержку 241 для тестирования
+		if (id.type != LWD_4Tx_NEW && id.type != LWD_4Tx) {
+			if (debug == true) Test << "sonde_set unsupported tool type " << id.type << endl;
+			Metro.close();
+			return 100; // 
+		}
+		if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx) {
 			GP_METROLOGY metrology;
 			Metro.read((char*)&metrology, sizeof(GP_METROLOGY));
 			if (metrology.D_sonde_mm == 0) 
@@ -256,68 +280,46 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pall
 		if (debug == true) Test << "sonde_set Metrology file no .bin ext " << endl;
 		return 1;
 	}
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	int search_result_icp = file_in_dir_search(Pallete_dir, "icp", metro_signature, find_file_fullname);
-
-	if (search_result_icp == 0) {//если нашли палетки INF/CYL то заносим из файла в массив
-		ifstream pallete_in;
-		pallete_in.open((*find_file_fullname).c_str(), ios::binary);
-		if (!pallete_in.is_open()) {
-			if (debug == true)Test << "sonde_set err_icp_file_not_open" << endl;
-			result_icp = 4;
+	//     NEURO_TEST.dll
+	if (hNeuroDll == NULL) {
+		std::string dllDir = GetDllDirectory();
+		std::string neuroPath = dllDir + "NEURO_TEST.dll";
+		hNeuroDll = LoadLibraryA(neuroPath.c_str());
+		if (hNeuroDll == NULL) {
+			//     .dll
+			hNeuroDll = LoadLibraryA("NEURO_TEST.dll");
 		}
-		pallete_in.read((char*)&Header_icp, sizeof(INF_CYL_PALLETE_FILE_HEADER));
-		for (int n_Ro_p = 0; n_Ro_p < 270; n_Ro_p++) {
-			for (int n_Ro_zp = 0; n_Ro_zp < 288; n_Ro_zp++) {
-				INF_CYL_PALLETE_R inf_cyl_pallete_r;
-				pallete_in.read((char*)&inf_cyl_pallete_r, sizeof(INF_CYL_PALLETE_R));
-				inf_cyl_pallete_new->inf_cyl_r[n_Ro_p][n_Ro_zp] = inf_cyl_pallete_r;
+		if (hNeuroDll == NULL) {
+			if (debug == true) Test << "sonde_set unable to load NEURO_TEST.dll" << endl;
+			return 200;
+		}
+		fnGeoPredictor_Create = (PFN_GeoPredictor_Create)GetProcAddress(hNeuroDll, "GeoPredictor_Create");
+		fnGeoPredictor_Predict = (PFN_GeoPredictor_Predict)GetProcAddress(hNeuroDll, "GeoPredictor_Predict");
+		fnGeoPredictor_Destroy = (PFN_GeoPredictor_Destroy)GetProcAddress(hNeuroDll, "GeoPredictor_Destroy");
+		fnGeoPredictor_GetLastError = (PFN_GeoPredictor_GetLastError)GetProcAddress(hNeuroDll, "GeoPredictor_GetLastError");
+		if (!fnGeoPredictor_Create || !fnGeoPredictor_Predict || !fnGeoPredictor_Destroy) {
+			if (debug == true) Test << "sonde_set unable to get neuro functions" << endl;
+			FreeLibrary(hNeuroDll); hNeuroDll = NULL;
+			return 201;
+		}
+		//     exported_weights
+		std::string weightsDir = dllDir + "exported_weights";
+		hNeuroPredictor = fnGeoPredictor_Create(weightsDir.c_str());
+		if (hNeuroPredictor == NULL) {
+			// 
+			weightsDir = "exported_weights";
+			hNeuroPredictor = fnGeoPredictor_Create(weightsDir.c_str());
+		}
+		if (hNeuroPredictor == NULL) {
+			if (debug == true) {
+				Test << "sonde_set unable to create neuro predictor, weights dir: " << weightsDir << endl;
+				if (fnGeoPredictor_GetLastError)
+					Test << "neuro error: " << fnGeoPredictor_GetLastError() << endl;
 			}
+			FreeLibrary(hNeuroDll); hNeuroDll = NULL;
+			return 202;
 		}
-		pallete_in.close();
-		infcylp = true;
-		result_icp = 0;
-	}
-	else {
-		result_icp = search_result_icp;
-	}
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
-	int search_result_asp = file_in_dir_search(Pallete_dir, "asp", metro_signature, find_file_fullname);
-
-	if (search_result_asp == 0) {//если нашли палетки INF/CYL то заносим из файла в массив
-		ifstream pallete_in;
-		pallete_in.open((*find_file_fullname).c_str(), ios::binary);
-		if (!pallete_in.is_open()) {
-			if (debug == true)Test << "sonde_set err_asp_file_not_open" << endl;
-			result_asp = 4;
-		}
-
-		pallete_in.read((char*)&Header_asp, sizeof(VZZ_2LAYER_PALLETE_FILE_HEADER));
-		for (int n_Ro_sonde = 0; n_Ro_sonde < 225; n_Ro_sonde++) {
-			for (int n_Ro_up = 0; n_Ro_up < 225; n_Ro_up++) {
-				VZZ_2LAYER_PALLETE_UNIT vzz_2layer_pallete_unit;
-				if (!pallete_in.eof()) {
-					pallete_in.read((char*)&vzz_2layer_pallete_unit, sizeof(VZZ_2LAYER_PALLETE_UNIT));
-					vzz_2layer_pallete->vzz_2layer_unit[n_Ro_sonde][n_Ro_up] = vzz_2layer_pallete_unit;
-				}
-			}
-		}
-		pallete_in.close();
-		vzz2layerp = true;
-		result_asp = 0;
-	}
-	else {
-		result_asp = search_result_asp;
-	}
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	result = result + (result_asp << 16) + (result_icp << 8);
-	if (debug == true) {
-		//Test << "result_icp " << std::bitset<32>(result_icp << 8) << endl;
-		//Test << "result_asp " << std::bitset<32>(result_asp << 16) << endl;
-		Test << "result_binary " << std::bitset<32>(result) << endl;
-		Test << "LEGEND " << " Ro1_400.Omm " << " Ro2_400.Omm " << " Ro3_400.Omm " << " Ro4_400.Omm " << " Ro1_2000.Omm " << " Ro2_2000.Omm " << " Ro3_2000.Omm " << " Ro4_2000.Omm ";
-		Test << " Ro_p_400.Omm " << " Ro_p_2000.Omm " << " Ro_zp_400.Omm " << " Ro_zp_2000.Omm " << " R_zp_400.cm " << " R_zp_2000.cm " << endl;
+		if (debug == true) Test << "sonde_set neuro predictor created OK" << endl;
 	}
 
 	return result;
@@ -355,7 +357,7 @@ extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, 
 	int result = 1;
 	GP_DATA gp_data;
 	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
-	if (id.type == LWD_4Tx_NEW  || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
+	if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
 		gp_data = *(GP_DATA*)((uint8_t*)Data + shift);
 		for (int freq = 0; freq < 2; freq++) {
 			for (int Tx = 0; Tx < 5; Tx++) {
@@ -371,7 +373,7 @@ extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, 
 extern "C" __declspec(dllexport)  int get_Phase(void *Data, PHASE *D_phase, int shift) {
 	GP_DATA gp_data;
 	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
-	if (id.type == LWD_4Tx_NEW || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
+	if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
 		gp_data = *(GP_DATA*)((uint8_t*)Data + +shift);
 		if (gp_data.signature == global_signature) {
 			for (int freq = 0; freq < 2; freq++) {
@@ -392,7 +394,7 @@ extern "C" __declspec(dllexport)  int get_Phase(void *Data, PHASE *D_phase, int 
 extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *condition, int shift) {
 	GP_DATA gp_data;
 	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
-	if (id.type == LWD_4Tx_NEW || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
+	if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
 		gp_data = *(GP_DATA*)((uint8_t*)Data + shift);
 		*condition = gp_data.condition;
 		return 0;
@@ -415,7 +417,7 @@ extern "C" __declspec(dllexport) int simmetry(PHASE *Phase_in, PHASE *Phase_smt,
 	if (id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR) {
 		N_Tx = 5;
 	}
-	else if (id.type == LWD_4Tx_NEW || id.type == CARTOGRAPH_LWD_4Tx) {
+	else if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx) {
 		N_Tx = 4;
 	}
 	else if (id.type == LWD_3Tx) {
@@ -481,64 +483,51 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 		}
 	}
 
-	//При - 1 ничего  не вычисляется.
-	//При 0 Вычисляется только УЭС, ЗП не вычисляется.
-	//При 1 ЗП  вычисляется от всех  зондов на данной частоте.
-	//При 2 ЗП  вычисляется для всех, исключая самый длинный зонд 
-	//При 3 ЗП  вычисляется для всех, исключая самый короткий зонд
-	//Для трехзондовых приборов при 1, 2 или 3 ЗП вычисляется для всех трех зондов.
-	//Если лежит вне диапазона - 1, 0, 1, 2, 3, то = 0.
-	int pz[2]; pz[_400_kGz] = pz_400; pz[_2000_kGz] = pz_2000;
+	//     (LWD_4Tx_NEW) - временно добавляем поддержку 241 для тестирования
+	if (id.type != LWD_4Tx_NEW && id.type != LWD_4Tx) {
+		return 100; // 
+	}
+
+	//     4 
 	for (int freq = 0; freq < 2; freq++) {
-		if (pz[freq] != -1 && pz[freq] != 1 && pz[freq] != 2 && pz[freq] != 3) pz[freq] = 0;
-		if (id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR) {
-			     if (pz[freq] == 0)range[freq] = { T1,T2,T3,T4,T5 };
-		    else if (pz[freq] == 1)range[freq] = { T1,T2,T3,T4,T5 };
-			else if (pz[freq] == 2)range[freq] = { T1,T2,T3,T4 };
-			else if (pz[freq] == 3)range[freq] = { T2,T3,T4,T5 };
-		}
-		else if (id.type == LWD_4Tx_NEW || id.type == CARTOGRAPH_LWD_4Tx) {
-			     if (pz[freq] == 0)range[freq] = { T1,T2,T3,T4 };
-		    else if (pz[freq] == 1)range[freq] = { T1,T2,T3,T4};
-			else if (pz[freq] == 2)range[freq] = { T1,T2,T3};
-			else if (pz[freq] == 3)range[freq] = { T2,T3,T4};
-		}
-		else if (id.type == LWD_3Tx){
-			range[freq] = { T1,T2,T3 };
+		for (int Tx = 0; Tx < 4; Tx++) {
+			Ro_3c->Ro[freq][Tx] = RO_dFI(param[freq][Tx], Phase->Phase[freq][Tx]);
 		}
 	}
 
-	//в любом случае считаем УЭС для всех зондов по  золотому сечению
-/////////////////////////////////////////////////////////////////////////////////////////////////////////		
-	
-	for (int freq = 0; freq < 2; freq++) {
-		int r_bh_sm = D_bhole_mm / 20;// радиус скважины в см для функции расчета ЗП
-		float Ro_to_AF[5] = { 0.0f, };// -УЭС вычисленные для однородной среды
-		float ro_sr = 0;//среднее значение УЭС для однородной среды для группы зондов, участвующих в поиске
-		int n_sr = 0;//счетчик количества зондов
-		float delta_sr = 0.0f;//разброс от среднего
-		float delta_Ro = 0.0f;// разброс от среднего в % по УЭС для однородной среды для группы зондов, участвующих в поиске
-		
-		for (int Tx : range[freq]) {
-			Ro_3c->Ro[freq][Tx] = RO_dFI(param[freq][Tx], Phase->Phase[freq][Tx]);
-			Ro_to_AF[Tx] = Ro_3c->Ro[freq][Tx];
-			ro_sr += Ro_3c->Ro[freq][Tx];
-			n_sr++;
+	//     (8 )
+	if (hNeuroPredictor != NULL && fnGeoPredictor_Predict != NULL) {
+		float raw_inputs[8];
+		for (int Tx = 0; Tx < 4; Tx++) {
+			raw_inputs[Tx] = phase[0][Tx];
+			raw_inputs[Tx + 4] = phase[1][Tx];
 		}
-		ro_sr /= n_sr;
-		for (int Tx : range[freq])
-			delta_sr += fabs(Ro_3c->Ro[freq][Tx] - ro_sr);
-		delta_sr /= n_sr;
-		delta_Ro = 100 * delta_sr / ro_sr;
-		service->delta_percent_start[freq] = delta_Ro;
-	    //если в векторе что то есть и палетки подгружены, считаем ЗП для частоты
-		if (pz[freq] > 0 && infcylp == true) {
-			Zp[freq] = calc_Penetrition_zone_AF(inf_cyl_pallete_new, Phase->Phase[freq], range[freq], freq, Ro_to_AF, ro_sr, delta_Ro, ro_bh, r_bh_sm);
+		float out_results[3] = { 0.0f };
+		int neuro_result = fnGeoPredictor_Predict(hNeuroPredictor, raw_inputs, out_results);
+		if (neuro_result == 0) {
+			//  : out[0]->Ro_p, out[1]->Ro_zp, out[2]->R_zp
+			for (int freq = 0; freq < 2; freq++) {
+				Ro_3c->Ro_p[freq] = out_results[0];
+				Ro_3c->Ro_zp[freq] = out_results[1];
+				Ro_3c->R_zp[freq] = out_results[2];
+			}
+			service->delta_percent_min[0] = 0.0f;
+			service->delta_percent_min[1] = 0.0f;
+			service->delta_percent_start[0] = 0.0f;
+			service->delta_percent_start[1] = 0.0f;
 		}
-		Ro_3c->Ro_p[0] = Zp[freq].Ro_p;
-		Ro_3c->R_zp[0] = Zp[freq].R_zp;
-		Ro_3c->Ro_zp[0] = Zp[freq].Ro_zp;
-		service->delta_percent_min[freq] = Zp[freq].tf;
+		else {
+			if (debug == true) {
+				Test << "calculate_Rho_AF neuro predict failed, code " << neuro_result << endl;
+				if (fnGeoPredictor_GetLastError)
+					Test << "neuro error: " << fnGeoPredictor_GetLastError() << endl;
+			}
+			return 300;
+		}
+	}
+	else {
+		if (debug == true) Test << "calculate_Rho_AF neuro predictor not initialized" << endl;
+		return 301;
 	}
 
 	//cout << "zp.tf " << Zp_400.tf <<" "<< Zp_2000.tf << endl;;
@@ -723,7 +712,7 @@ extern "C" __declspec(dllexport) int ro_corr_ref_point(void *Metrology, Ro *Ro_c
 		Metro.seekg(0, ios::beg);
 		ID id = get_sonde_id(signature);
 		//по новому
-		if (id.type == LWD_4Tx_NEW || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
+		if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
 			GP_METROLOGY metrology;
 			Metro.read((char*)&metrology, sizeof(GP_METROLOGY));
 			if (metrology.D_sonde_mm == 0)
