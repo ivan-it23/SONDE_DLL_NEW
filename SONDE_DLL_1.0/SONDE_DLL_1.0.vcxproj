@@ -158,18 +158,32 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="bessel.h" />
-    <ClInclude Include="function.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Constants.h" />
+    <ClInclude Include="Types.h" />
     <ClInclude Include="variable.h" />
+    <ClInclude Include="Logger.h" />
+    <ClInclude Include="SondeState.h" />
+    <ClInclude Include="SondeCore.h" />
+    <ClInclude Include="MetrologyLoader.h" />
+    <ClInclude Include="NeuroPredictor.h" />
+    <ClInclude Include="neuro_api.h" />
+    <ClInclude Include="Resistivity.h" />
+    <ClInclude Include="PhaseProcessor.h" />
+    <ClInclude Include="AntiSpiral.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bessel.cpp" />
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="function.cpp" />
-    <ClCompile Include="half_float.cpp" />
     <ClCompile Include="SONDE_DLL_1.0.cpp" />
+    <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="SondeState.cpp" />
+    <ClCompile Include="SondeCore.cpp" />
+    <ClCompile Include="MetrologyLoader.cpp" />
+    <ClCompile Include="NeuroPredictor.cpp" />
+    <ClCompile Include="Resistivity.cpp" />
+    <ClCompile Include="PhaseProcessor.cpp" />
+    <ClCompile Include="AntiSpiral.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
