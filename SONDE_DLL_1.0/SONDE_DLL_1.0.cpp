@@ -28,7 +28,7 @@ using namespace std;
 extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pallete_dir) {
 	int result = err::kOk;
 
-	// читаем файл метрологии
+	// чтение файла метрологии
 	GP_METROLOGY metrology = {};
 	uint32_t signature = 0;
 	int read_result = read_metrology_file((const char*)Metrology, &metrology, &signature);
@@ -38,7 +38,7 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pall
 	global_signature = signature;
 	id = get_sonde_id(signature);
 
-	// поддерживаются LWD_4Tx_NEW и временно LWD_4Tx (для тестирования метрологии)
+
 	if (id.type != LWD_4Tx_NEW && id.type != LWD_4Tx) {
 		if (debug == true) Test << "sonde_set unsupported tool type " << id.type << endl;
 		return err::kUnsupportedType;
@@ -112,14 +112,14 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 	Ro_3c->Ro_p[0] = 0.0f; Ro_3c->Ro_zp[0] = 0.0f; Ro_3c->R_zp[0] = 0.0f;
 	Ro_3c->Ro_p[1] = 0.0f; Ro_3c->Ro_zp[1] = 0.0f; Ro_3c->R_zp[1] = 0.0f;
 
-	// если нужна компенсация скважины, то тут надо рассчитать dfi_bh
+
 	for (int freq = 0; freq < 2; freq++) {
 		for (int Tx = 0; Tx < 5; Tx++) {
 			phase[freq][Tx] = Phase->Phase[freq][Tx] - dfi_bh[freq][Tx];
 		}
 	}
 
-	// поддерживаются LWD_4Tx_NEW и временно LWD_4Tx
+	// поддерживаются LWD_4Tx_NEW и LWD_4Tx
 	if (id.type != LWD_4Tx_NEW && id.type != LWD_4Tx) {
 		return err::kUnsupportedType;
 	}

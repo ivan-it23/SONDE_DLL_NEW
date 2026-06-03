@@ -5,7 +5,7 @@
 #include <chrono>
 #include <ctime>
 
-#pragma warning(disable : 4996) // ctime является устаревшей, но сохранён для идентичности вывода
+#pragma warning(disable : 4996)
 
 using namespace std;
 using namespace std::chrono;
