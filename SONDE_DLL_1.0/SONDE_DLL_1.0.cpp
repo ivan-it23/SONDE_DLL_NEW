@@ -135,12 +135,26 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 	if (neuro_available()) {
 		float raw_inputs[config::kNeuroInputCount];
 		for (int Tx = 0; Tx < 4; Tx++) {
-			raw_inputs[Tx] = phase[0][Tx];
-			raw_inputs[Tx + 4] = phase[1][Tx];
+			raw_inputs[Tx] = phase[0][Tx] * Grad;
+			raw_inputs[Tx + 4] = phase[1][Tx] * Grad;
+		}
+		if (debug == true) {
+			Test << "[NEURO] sym_phases_400: ";
+			for (int Tx = 0; Tx < 4; Tx++) Test << phase[0][Tx] << " ";
+			Test << "sym_phases_2000: ";
+			for (int Tx = 0; Tx < 4; Tx++) Test << phase[1][Tx] << " ";
+			Test << "raw_inputs: ";
+			for (int i = 0; i < config::kNeuroInputCount; i++) Test << raw_inputs[i] << " ";
+			Test << endl;
 		}
 		float out_results[config::kNeuroOutputCount] = { 0.0f };
 		int neuro_result = neuro_predict(raw_inputs, out_results);
 		if (neuro_result == 0) {
+			if (debug == true) {
+				Test << "[NEURO] predict OK: Ro_p=" << out_results[0]
+				     << " Ro_zp=" << out_results[1]
+				     << " R_zp=" << out_results[2] << endl;
+			}
 			// out[0]->Ro_p, out[1]->Ro_zp, out[2]->R_zp
 			for (int freq = 0; freq < 2; freq++) {
 				Ro_3c->Ro_p[freq] = out_results[0];

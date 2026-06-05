@@ -1,9 +1,7 @@
 #pragma once
 // Constants.h
 // Централизованные конфигурационные и физические константы проекта SONDE_DLL.
-// Значения идентичны исходным; вынесены сюда для устранения хардкода и
-// единообразного сопровождения. Изменение этих значений не предполагается без
-// согласования, так как поведение DLL должно оставаться неизменным.
+
 
 #include <cmath>
 
@@ -20,8 +18,6 @@ const float Grad = static_cast<float>(180.0 / PI);
 
 // --------------------------------------------------------------------------
 // Сигнатурные коды типов приборов ЭМК.
-// Сохранены как макросы для побайтовой совместимости со сравнениями вида
-// id.type == LWD_4Tx_NEW во всём коде.
 // --------------------------------------------------------------------------
 #define CARTOGRAPH         351
 #define CARTOGRAPH_LWD_4Tx 359
@@ -45,7 +41,7 @@ constexpr int kMaxTx = 5;     // максимальное число перед�
 constexpr int kNeuroInputCount = 8;  // 4 Tx * 2 частоты
 constexpr int kNeuroOutputCount = 3; // Ro_p, Ro_zp, R_zp
 constexpr char kNeuroDllName[] = "NEURO_TEST.dll";
-constexpr char kNeuroWeightsDir[] = "exported_weights";
+constexpr char kNeuroWeightsDir[] = "exported_weights_PINN_symm";
 constexpr char kNeuroCreateFn[] = "GeoPredictor_Create";
 constexpr char kNeuroPredictFn[] = "GeoPredictor_Predict";
 constexpr char kNeuroDestroyFn[] = "GeoPredictor_Destroy";

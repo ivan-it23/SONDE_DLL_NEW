@@ -75,7 +75,11 @@ int neuro_init() {
 		return err::kNeuroCreateFailed;
 	}
 
-	if (debug == true) Test << "sonde_set neuro predictor created OK" << endl;
+	if (debug == true) {
+		Test << "neuro_init: DLL loaded from " << neuroPath << endl;
+		Test << "neuro_init: weights dir " << weightsDir << endl;
+		Test << "neuro_init: predictor created OK" << endl;
+	}
 	return err::kOk;
 }
 
