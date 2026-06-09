@@ -63,6 +63,9 @@
     <ClInclude Include="PhaseProcessor.h">
       <Filter>Processing</Filter>
     </ClInclude>
+    <ClInclude Include="InvasionForward.h">
+      <Filter>Processing</Filter>
+    </ClInclude>
     <ClInclude Include="AntiSpiral.h">
       <Filter>Signal</Filter>
     </ClInclude>
@@ -99,6 +102,9 @@
       <Filter>Processing</Filter>
     </ClCompile>
     <ClCompile Include="PhaseProcessor.cpp">
+      <Filter>Processing</Filter>
+    </ClCompile>
+    <ClCompile Include="InvasionForward.cpp">
       <Filter>Processing</Filter>
     </ClCompile>
     <ClCompile Include="AntiSpiral.cpp">

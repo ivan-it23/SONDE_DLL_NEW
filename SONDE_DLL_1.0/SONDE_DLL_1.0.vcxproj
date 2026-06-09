@@ -172,6 +172,7 @@
     <ClInclude Include="Resistivity.h" />
     <ClInclude Include="PhaseProcessor.h" />
     <ClInclude Include="AntiSpiral.h" />
+    <ClInclude Include="InvasionForward.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -184,6 +185,7 @@
     <ClCompile Include="Resistivity.cpp" />
     <ClCompile Include="PhaseProcessor.cpp" />
     <ClCompile Include="AntiSpiral.cpp" />
+    <ClCompile Include="InvasionForward.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

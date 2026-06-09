@@ -272,20 +272,30 @@ void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
 
 //ok
 extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, Ro *rho, int shift) {
-	int result = 1;
-	GP_DATA gp_data;
-	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
-	if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
-		gp_data = *(GP_DATA*)((uint8_t*)Data + shift);
-		for (int freq = 0; freq < 2; freq++) {
-			for (int Tx = 0; Tx < 5; Tx++) {
-				phase->Phase[freq][Tx] = gp_data.phase_smt[freq][Tx];
-				rho->Ro[freq][Tx] = gp_data.rho_smt[freq][Tx];
-			}
-		}
-		result = 0;
+	uint8_t *base = (uint8_t*)Data + shift;
+	const uint32_t frame_signature = *(uint32_t*)base;
+
+	// Защита от рассинхронизации раскладки: кадр данных и загруженный файл
+	// метрологии обязаны относиться к одному прибору. Несовпадение сигнатур
+	// означает, что структура кадра не соответствует метрологии, поэтому разбор
+	// прекращается и возвращается явный код ошибки. Вызывающая сторона обязана
+	// уведомить пользователя, а не использовать заведомо некорректные данные.
+	if (global_signature != 0 && frame_signature != global_signature) {
+		return err::kFrameSignatureMismatch;
 	}
-	return result;
+
+	// Все поддерживаемые приборы поставляют данные в актуальной канонической
+	// структуре GP_DATA[2][5]: симметризованные фазы phase_smt и УЭС rho_smt
+	// уже разложены по [частота][передатчик], поэтому достаточно прямого
+	// копирования без типозависимого маппинга.
+	const GP_DATA *gp = (const GP_DATA*)base;
+	for (int freq = 0; freq < 2; freq++) {
+		for (int Tx = 0; Tx < 5; Tx++) {
+			phase->Phase[freq][Tx] = gp->phase_smt[freq][Tx];
+			rho->Ro[freq][Tx] = gp->rho_smt[freq][Tx];
+		}
+	}
+	return err::kOk;
 }
 
 //ok
