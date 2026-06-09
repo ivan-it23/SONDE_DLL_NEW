@@ -150,16 +150,23 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 		float out_results[config::kNeuroOutputCount] = { 0.0f };
 		int neuro_result = neuro_predict(raw_inputs, out_results);
 		if (neuro_result == 0) {
+			// NEURO_TEST.dll returns: out[0] = r_inv (m), out[1] = rho_inv, out[2] = rho_form.
+			const float r_inv_m = out_results[0];
+			const float rho_inv = out_results[1];
+			const float rho_form = out_results[2];
+			const float r_inv_cm = r_inv_m * 100.0f;
 			if (debug == true) {
-				Test << "[NEURO] predict OK: Ro_p=" << out_results[0]
-				     << " Ro_zp=" << out_results[1]
-				     << " R_zp=" << out_results[2] << endl;
+				Test << "[NEURO] predict raw: r_inv_m=" << r_inv_m
+				     << " rho_inv=" << rho_inv
+				     << " rho_form=" << rho_form << endl;
+				Test << "[NEURO] mapped: Ro_p=" << rho_form
+				     << " Ro_zp=" << rho_inv
+				     << " R_zp_cm=" << r_inv_cm << endl;
 			}
-			// out[0]->Ro_p, out[1]->Ro_zp, out[2]->R_zp
 			for (int freq = 0; freq < 2; freq++) {
-				Ro_3c->Ro_p[freq] = out_results[0];
-				Ro_3c->Ro_zp[freq] = out_results[1];
-				Ro_3c->R_zp[freq] = out_results[2];
+				Ro_3c->Ro_p[freq] = rho_form;
+				Ro_3c->Ro_zp[freq] = rho_inv;
+				Ro_3c->R_zp[freq] = r_inv_cm;
 			}
 			service->delta_percent_min[0] = 0.0f;
 			service->delta_percent_min[1] = 0.0f;
@@ -198,3 +205,4 @@ extern "C" __declspec(dllexport) void debug_mode(bool Debug) {
 	if (Debug == false) debug = false;
 	Test << " debug = " << debug << endl;
 }
+
