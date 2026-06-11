@@ -94,15 +94,14 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pall
 	return result;
 }
 
-//отлажено без зоны проникновения
+// Коррекция за скважину к входам нейросети не применяется: модель обучена без учёта зоны проникновения.
 extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, float ro_bh, int D_bhole_mm, int pz_400, int pz_2000, SERVICE *service) {
 	int result = 0;
-	vector <int> range[2]; //описание группы зондов, участвующих в расчете ЗП
-	ZP Zp[2] = { 0.0f, };  //результат для ЗП
-	float phase[2][5];     //фазы
-	float dfi_bh[2][5] = { 0.0f, }; //фазы компенсации влияния скважины
+	vector <int> range[2];
+	ZP Zp[2] = { 0.0f, };
+	float phase[2][5];
+	float dfi_bh[2][5] = { 0.0f, };
 
-	//пронуляем
 	for (int freq = 0; freq < 2; freq++) {
 		for (int Tx = 0; Tx < 5; Tx++) {
 			dfi_bh[freq][Tx] = 0.0f;
@@ -150,7 +149,8 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 		float out_results[config::kNeuroOutputCount] = { 0.0f };
 		int neuro_result = neuro_predict(raw_inputs, out_results);
 		if (neuro_result == 0) {
-			// NEURO_TEST.dll returns: out[0] = r_inv (m), out[1] = rho_inv, out[2] = rho_form.
+			// NEURO_TEST.dll возвращает: out[0] = r_inv (м), out[1] = rho_inv (Ом·м), out[2] = rho_form (Ом·м).
+			// R_zp хранится в структуре Ro в сантиметрах; ph_smt_zp переводит обратно в метры.
 			const float r_inv_m = out_results[0];
 			const float rho_inv = out_results[1];
 			const float rho_form = out_results[2];
@@ -199,7 +199,6 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 	return result;
 }
 
-//ok
 extern "C" __declspec(dllexport) void debug_mode(bool Debug) {
 	if (Debug == true) debug = true;
 	if (Debug == false) debug = false;

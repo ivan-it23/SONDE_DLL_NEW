@@ -270,7 +270,6 @@ void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
 // Экспортируемые функции извлечения и обработки фаз.
 // --------------------------------------------------------------------------
 
-//ok
 extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, Ro *rho, int shift) {
 	uint8_t *base = (uint8_t*)Data + shift;
 	const uint32_t frame_signature = *(uint32_t*)base;
@@ -298,7 +297,6 @@ extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, 
 	return err::kOk;
 }
 
-//ok
 extern "C" __declspec(dllexport)  int get_Phase(void *Data, PHASE *D_phase, int shift) {
 	GP_DATA gp_data;
 	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
@@ -320,7 +318,6 @@ extern "C" __declspec(dllexport)  int get_Phase(void *Data, PHASE *D_phase, int 
 	else return  1;
 }
 
-//ok
 extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *condition, int shift) {
 	GP_DATA gp_data;
 	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
@@ -332,7 +329,6 @@ extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *conditi
 	else return 1;
 }
 
-//ok
 extern "C" __declspec(dllexport) int simmetry(PHASE *Phase_in, PHASE *Phase_smt, uint32_t condition) {
 	int N_Tx = 0;
 	//	                400  kGz  2000 kGz
