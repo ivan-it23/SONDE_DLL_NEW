@@ -7,7 +7,7 @@
 // Загружает NEURO_TEST.dll и создаёт предиктор (идемпотентно).
 // Возвращает err::kOk при успехе либо коды err::kNeuroDllNotLoaded(200),
 // err::kNeuroFuncNotFound(201), err::kNeuroCreateFailed(202).
-int neuro_init();
+int neuro_init(int toolType);
 
 // Признак готовности предиктора к вызову neuro_predict.
 bool neuro_available();

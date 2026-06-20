@@ -41,7 +41,7 @@ constexpr int kMaxTx = 5;     // максимальное число перед�
 constexpr int kNeuroInputCount = 8;  // 4 Tx * 2 частоты
 constexpr int kNeuroOutputCount = 3; // Ro_p, Ro_zp, R_zp
 constexpr char kNeuroDllName[] = "NEURO_TEST.dll";
-constexpr char kNeuroWeightsDir[] = "exported_weights_PINN_symm";
+constexpr char kNeuroWeightsRootDir[] = "neuro-weights";
 constexpr char kNeuroCreateFn[] = "GeoPredictor_Create";
 constexpr char kNeuroPredictFn[] = "GeoPredictor_Predict";
 constexpr char kNeuroDestroyFn[] = "GeoPredictor_Destroy";
@@ -80,6 +80,7 @@ constexpr int kUnsupportedType = 100;    // неподдерживаемый т�
 constexpr int kNeuroDllNotLoaded = 200;  // NEURO_TEST.dll не загружена
 constexpr int kNeuroFuncNotFound = 201;  // не найдены функции нейросети
 constexpr int kNeuroCreateFailed = 202;  // предиктор не создан
+constexpr int kNeuroWeightsNotFound = 203; // нет весов нейросети для типа прибора
 constexpr int kNeuroPredictFailed = 300; // ошибка предсказания
 constexpr int kNeuroNotInitialized = 301; // предиктор не инициализирован
 

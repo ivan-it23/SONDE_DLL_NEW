@@ -24,6 +24,23 @@
 
 using namespace std;
 
+static bool IsKnownToolType(int toolType) {
+	return toolType == CARTOGRAPH ||
+		toolType == CARTOGRAPH_LWD_4Tx ||
+		toolType == AUTONOM_4Tx ||
+		toolType == AUTONOM_5Tx ||
+		toolType == AUTONOM_5Tx_SDR ||
+		toolType == LWD_3Tx ||
+		toolType == LWD_4Tx ||
+		toolType == LWD_4Tx_NEW;
+}
+
+static bool IsLwd4TxNeuroType(int toolType) {
+	return toolType == CARTOGRAPH_LWD_4Tx ||
+		toolType == LWD_4Tx ||
+		toolType == LWD_4Tx_NEW;
+}
+
 // Инициализация: загрузка метрологии для типа прибора и подготовка нейросети.
 extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pallete_dir) {
 	int result = err::kOk;
@@ -39,7 +56,7 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pall
 	id = get_sonde_id(signature);
 
 
-	if (id.type != LWD_4Tx_NEW && id.type != LWD_4Tx) {
+	if (!IsKnownToolType(id.type)) {
 		if (debug == true) Test << "sonde_set unsupported tool type " << id.type << endl;
 		return err::kUnsupportedType;
 	}
@@ -87,7 +104,7 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *Pall
 	}
 
 	// инициализация нейросетевого предиктора (NEURO_TEST.dll)
-	int neuro_result = neuro_init();
+	int neuro_result = neuro_init(id.type);
 	if (neuro_result != err::kOk)
 		return neuro_result;
 
@@ -118,8 +135,8 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 		}
 	}
 
-	// поддерживаются LWD_4Tx_NEW и LWD_4Tx
-	if (id.type != LWD_4Tx_NEW && id.type != LWD_4Tx) {
+	// Current neural model supports LWD tools with 4 transmitters.
+	if (!IsLwd4TxNeuroType(id.type)) {
 		return err::kUnsupportedType;
 	}
 
@@ -204,4 +221,3 @@ extern "C" __declspec(dllexport) void debug_mode(bool Debug) {
 	if (Debug == false) debug = false;
 	Test << " debug = " << debug << endl;
 }
-
