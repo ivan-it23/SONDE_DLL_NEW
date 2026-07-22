@@ -1,16 +1,17 @@
 #pragma once
 // Types.h
 // Доменные типы данных проекта SONDE_DLL: бинарные структуры приборов и
-// метрологии, рабочие структуры расчёта, палеточные структуры.
+// метрологии и рабочие структуры расчёта.
 // Раскладка структур должна оставаться неизменной (#pragma pack(push,1)),
 // так как структуры читаются/пишутся побайтово в бинарные файлы.
 
 #include <complex>
 #include <vector>
 #include <stdint.h>
+#include <cstddef>
 
 // Исходные макро-определения целочисленных типов сохранены без изменений:
-// от них зависит раскладка бинарных структур приборов и палеток.
+// от них зависит раскладка бинарных структур приборов.
 #define int16_t short
 #define int32_t long
 #define uint32_t unsigned long
@@ -121,86 +122,13 @@ struct GP_METROLOGY {
 	int16_t Air_zz[2][5];
 	int16_t Air_zz_amt[2][5];
 	uint32_t D_sonde_mm;
-	uint8_t service[164]; // резерв до 240 байт
+	uint32_t work_type;
+	uint32_t Rx_Position; // 0: R1->T1, 1: R1->T2
+	uint16_t service[78]; // резерв до 240 байт
 };
 
 struct INF_CYL {
 	complex <float> sonde[2][5];
-};
-
-struct INF_CYL_PALLETE_FILE_HEADER {
-	uint32_t tool_type;
-	uint32_t N;
-	SONDE_PARAM param[2][5];
-};
-
-struct INF_CYL_PALLETE_R {
-	uint32_t tool_type;
-	float Ro_p;
-	float Ro_zp;
-	float16_t PH[100][2][5];
-	uint32_t N;
-};
-
-struct INF_CYL_PALLETE {
-	uint32_t tool_type;
-	SONDE_PARAM param[2][5];
-	INF_CYL_PALLETE_R inf_cyl_r[270][288];
-};
-
-struct VZZ_2LAYER_PALLETE_FILE_HEADER {
-	uint32_t signature;
-	uint32_t serial;
-	uint32_t N;
-	SONDE_PARAM param[8];
-};
-
-struct VZZ_2LAYER_PALLETE_UNIT {
-	uint32_t signature;
-	uint32_t serial;
-	float Ro_sonde;
-	float Ro_up;
-	float PH[100][8];
-	uint32_t N;
-};
-
-struct VZZ_2LAYER_PALLETE {
-	uint32_t signature;
-	uint32_t serial;
-	SONDE_PARAM param[8];
-	VZZ_2LAYER_PALLETE_UNIT vzz_2layer_unit[270][270];
-};
-
-struct TF {
-	float Ro[4];
-	float Ro_p;
-	float Ro_zp;
-	float R_zp;
-
-	float Ro_sonde;
-	float Ro_up;
-	float D;
-
-	float tf;
-
-	int n_Ro_p;
-	int n_Ro_zp;
-	int n_r_zp;
-
-	int n_Ro_sonde;
-	int n_Ro_upp;
-	int n_D;
-};
-
-struct STATE_AF {
-	float T;
-	float K;
-	int n_Ro_p;
-	int n_Ro_zp;
-	int n_r_zp;
-	int n_Ro_sonde;
-	int n_Ro_up;
-	int n_D;
 };
 
 struct ID {
@@ -212,3 +140,20 @@ struct ID {
 };
 
 #pragma pack(pop)
+
+static_assert(sizeof(GP_DATA) == 240, "GP_DATA binary layout must be 240 bytes");
+static_assert(offsetof(GP_DATA, signature) == 0, "GP_DATA.signature offset mismatch");
+static_assert(offsetof(GP_DATA, DELTA_PH) == 192, "GP_DATA.DELTA_PH offset mismatch");
+static_assert(offsetof(GP_DATA, ZERO_dPH) == 232, "GP_DATA.ZERO_dPH offset mismatch");
+
+static_assert(sizeof(GP_METROLOGY) == 240, "GP_METROLOGY binary layout must be 240 bytes");
+static_assert(offsetof(GP_METROLOGY, signature) == 0, "GP_METROLOGY.signature offset mismatch");
+static_assert(offsetof(GP_METROLOGY, L1) == 8, "GP_METROLOGY.L1 offset mismatch");
+static_assert(offsetof(GP_METROLOGY, L2) == 18, "GP_METROLOGY.L2 offset mismatch");
+static_assert(offsetof(GP_METROLOGY, F) == 28, "GP_METROLOGY.F offset mismatch");
+static_assert(offsetof(GP_METROLOGY, Air_zz) == 32, "GP_METROLOGY.Air_zz offset mismatch");
+static_assert(offsetof(GP_METROLOGY, Air_zz_amt) == 52, "GP_METROLOGY.Air_zz_amt offset mismatch");
+static_assert(offsetof(GP_METROLOGY, D_sonde_mm) == 72, "GP_METROLOGY.D_sonde_mm offset mismatch");
+static_assert(offsetof(GP_METROLOGY, work_type) == 76, "GP_METROLOGY.work_type offset mismatch");
+static_assert(offsetof(GP_METROLOGY, Rx_Position) == 80, "GP_METROLOGY.Rx_Position offset mismatch");
+static_assert(offsetof(GP_METROLOGY, service) == 84, "GP_METROLOGY.service offset mismatch");

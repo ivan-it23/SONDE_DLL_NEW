@@ -46,3 +46,10 @@ ipch/
 # ---- OS ----
 Thumbs.db
 Desktop.ini
+
+# Runtime, передаваемый вместе с SONDE DLL (сейчас доступна сборка x64).
+!runtime/
+!runtime/win-x64/
+!runtime/win-x64/**
+!runtime/win-Win32/
+!runtime/win-Win32/**

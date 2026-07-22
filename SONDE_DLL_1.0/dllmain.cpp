@@ -1,9 +1,9 @@
 // dllmain.cpp : точка входа DLL.
-// Управление жизненным циклом диагностического лога делегировано модулю Logger.
+// DllMain не выполняет файловый ввод-вывод и не захватывает прикладные мьютексы.
 
 #include "stdafx.h"
 #include <windows.h>
-#include "Logger.h"
+#include "SondeApi.h"
 
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
@@ -13,14 +13,13 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-		logger::init();
+		DisableThreadLibraryCalls(hModule);
 		break;
 	case DLL_THREAD_ATTACH:
 		break;
 	case DLL_THREAD_DETACH:
 		break;
 	case DLL_PROCESS_DETACH:
-		logger::shutdown();
 		break;
 	}
 	return TRUE;

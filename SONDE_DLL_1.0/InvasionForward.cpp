@@ -7,6 +7,8 @@
 #include "Constants.h"
 #include "SondeState.h"
 #include "Logger.h"
+#include "SondeCore.h"
+#include "ErrorState.h"
 
 using namespace std;
 
@@ -252,15 +254,34 @@ float Vzz_inf_cyl(SONDE_PARAM param, float Ro_p, float Ro_zp, float rzp) {
 // различие фаз обеспечивается геометрией/частотой зонда. R_zp поступает в
 // сантиметрах и переводится в метры для прямой задачи.
 extern "C" __declspec(dllexport) int ph_smt_zp(Ro *Ro_src, PHASE *Phase) {
-	if (Ro_src == nullptr || Phase == nullptr)
+	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
+	ClearSondeLastError();
+	if (Ro_src == nullptr || Phase == nullptr) {
+		SetSondeLastError("ph_smt_zp requires non-null Ro input and PHASE output.");
+		return err::kInvalidArgument;
+	}
+	if (!sonde_initialized) {
+		SetSondeLastError("sonde_set must complete successfully before ph_smt_zp.");
+		return err::kMetrologyNotInitialized;
+	}
+	if (!IsNeuralLwd4Tx(id)) {
+		SetSondeLastError("ph_smt_zp is available only for neural LWD/Cartograph 4Tx calculations.");
 		return err::kUnsupportedType;
+	}
 
-	for (int freq = 0; freq < 2; freq++) {
+	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		const float Ro_p = Ro_src->Ro_p[freq];
 		const float Ro_zp = Ro_src->Ro_zp[freq];
 		const float R_zp_m = Ro_src->R_zp[freq] / 100.0f; // см -> м
+		if (!std::isfinite(Ro_p) || !std::isfinite(Ro_zp) || !std::isfinite(R_zp_m) ||
+			Ro_p <= 0.0f || Ro_zp <= 0.0f || R_zp_m <= 0.0f) {
+			SetSondeLastError("ph_smt_zp requires positive finite Ro_p, Ro_zp and R_zp values for both frequencies.");
+			return err::kInvalidArgument;
+		}
 
-		for (int Tx = 0; Tx < 5; Tx++) {
+		for (int Tx = 0; Tx < config::kMaxTx; Tx++)
+			Phase->Phase[freq][Tx] = 0.0f;
+		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
 			// Слот зонда считается рабочим только при ненулевой геометрии
 			// (исключает несуществующий T5 у 4-передатчиковых приборов) и
 			// физически допустимых параметрах зоны проникновения.
@@ -269,7 +290,8 @@ extern "C" __declspec(dllexport) int ph_smt_zp(Ro *Ro_src, PHASE *Phase) {
 				Phase->Phase[freq][Tx] = Vzz_inf_cyl(param[freq][Tx], Ro_p, Ro_zp, R_zp_m);
 			}
 			else {
-				Phase->Phase[freq][Tx] = config::kInvalidPhase;
+				SetSondeLastError("ph_smt_zp cannot calculate a phase because an active L1/L2 geometry value is zero.");
+				return err::kMetrologyGeometry;
 			}
 		}
 	}
@@ -278,8 +300,8 @@ extern "C" __declspec(dllexport) int ph_smt_zp(Ro *Ro_src, PHASE *Phase) {
 		Test << "[ZP] ph_smt_zp Ro_p=" << Ro_src->Ro_p[0]
 		     << " Ro_zp=" << Ro_src->Ro_zp[0]
 		     << " R_zp(cm)=" << Ro_src->R_zp[0] << " phases(mG): ";
-		for (int freq = 0; freq < 2; freq++)
-			for (int Tx = 0; Tx < 4; Tx++)
+		for (int freq = 0; freq < config::kFreqCount; freq++)
+			for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
 				Test << Phase->Phase[freq][Tx] * mG << " ";
 		Test << endl;
 	}

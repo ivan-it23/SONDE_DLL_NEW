@@ -51,6 +51,15 @@
     <ClInclude Include="MetrologyLoader.h">
       <Filter>Metrology</Filter>
     </ClInclude>
+    <ClInclude Include="DataFile.h">
+      <Filter>Processing</Filter>
+    </ClInclude>
+    <ClInclude Include="ErrorState.h">
+      <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="SondeApi.h">
+      <Filter>API</Filter>
+    </ClInclude>
     <ClInclude Include="NeuroPredictor.h">
       <Filter>Neuro</Filter>
     </ClInclude>
@@ -94,6 +103,12 @@
     </ClCompile>
     <ClCompile Include="MetrologyLoader.cpp">
       <Filter>Metrology</Filter>
+    </ClCompile>
+    <ClCompile Include="DataFile.cpp">
+      <Filter>Processing</Filter>
+    </ClCompile>
+    <ClCompile Include="ErrorState.cpp">
+      <Filter>API</Filter>
     </ClCompile>
     <ClCompile Include="NeuroPredictor.cpp">
       <Filter>Neuro</Filter>

@@ -1,17 +1,24 @@
 #include "stdafx.h"
 #include "AntiSpiral.h"
 #include "Constants.h"
+#include "ErrorState.h"
 
 #include <complex>
 #include <cmath>
+#include <vector>
+#include <algorithm>
+#include <limits>
 
 using namespace std;
 
 void DFT(double *SGN, complex <double> *Harm, int win) {
-	double win_2 = win / 2.0;
-	for (int i = 0; i < win_2; i++)
+	if (!SGN || !Harm || win <= 0)
+		return;
+	const int halfWindow = win / 2;
+	const double win_2 = win / 2.0;
+	for (int i = 0; i < halfWindow; i++)
 		Harm[i] = 0;
-	for (int k = 0; k < win_2; k++) {
+	for (int k = 0; k < halfWindow; k++) {
 		for (int n = 0; n < win; n++) {
 			Harm[k] += SGN[n] * exp((std::complex<double>(0.0, -1.0) * PI * double(k*(n))) / win_2);
 		}
@@ -20,7 +27,8 @@ void DFT(double *SGN, complex <double> *Harm, int win) {
 }
 
 int SLAU(double matrica_a[5][5], int n, double massiv_b[5], double x[5]) {
-	n = 5;
+	if (!matrica_a || !massiv_b || !x || n < 1 || n > 5)
+		return -3;
 	int i, j, k, r;
 	double c = 0, M = 0, max = 0, s = 0, a[5][5] = { 0.0f, }, b[5] = { 0.0f, };
 	for (i = 0; i < n; i++) { x[i] = 0; }
@@ -50,6 +58,8 @@ int SLAU(double matrica_a[5][5], int n, double massiv_b[5], double x[5]) {
 		}
 
 		c = b[k]; b[k] = b[r]; b[r] = c;
+		if (max <= (std::numeric_limits<double>::epsilon)())
+			return -2;
 
 		for (i = k + 1; i < n; i++) {
 			for (M = a[i][k] / a[k][k], j = k; j < n; j++) {
@@ -59,7 +69,7 @@ int SLAU(double matrica_a[5][5], int n, double massiv_b[5], double x[5]) {
 		}
 	}
 
-	if (a[n - 1][n - 1] == 0)
+	if (fabs(a[n - 1][n - 1]) <= (std::numeric_limits<double>::epsilon)())
 
 		if (b[n - 1] == 0) return -1;
 
@@ -77,30 +87,45 @@ int SLAU(double matrica_a[5][5], int n, double massiv_b[5], double x[5]) {
 }
 
 int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win) {
-	complex <double> *HARM = new complex <double>[win];
-	double min = 0;
-	double max = 0;
+	if (!Sgn || !Sgn_out || !Sgn_out_m || win < 6)
+		return err::kInvalidArgument;
+	std::vector<complex<double>> harmonics(static_cast<size_t>(win));
+	double maxAmplitude = 0;
 	int n_max = 0;
-	int n_remove = 0;
+	int n_remove = 1;
 	bool stop = false;
-	double win_2 = win / 2.0;
+	const int halfWindow = win / 2;
+	const double win_2 = win / 2.0;
 
-	DFT(Sgn, HARM, win);
+	DFT(Sgn, harmonics.data(), win);
 
-	for (int i = 0; i < win_2; i++) {
-		if (abs(HARM[i + 1]) <= abs(HARM[i + 2]) && abs(HARM[i + 1]) <= abs(HARM[i]) && stop == false) {
+	for (int i = 0; i + 2 < halfWindow; i++) {
+		if (abs(harmonics[i + 1]) <= abs(harmonics[i + 2]) &&
+			abs(harmonics[i + 1]) <= abs(harmonics[i]) && !stop) {
 			n_remove = i + 1; stop = true;
 		}
 	}
-	for (int i = n_remove; i < win_2; i++) {
-		if (abs(HARM[i]) > max) {
-			max = abs(HARM[i]);
+	for (int i = (std::max)(n_remove, 1); i + 1 < halfWindow; i++) {
+		if (abs(harmonics[i]) > maxAmplitude) {
+			maxAmplitude = abs(harmonics[i]);
 			n_max = i;
 		}
 	}
+	if (n_max <= 0 || n_max + 1 >= halfWindow || maxAmplitude <= 0.0)
+		return err::kNumericalFailure;
 
-	double T = win / (n_max - real((HARM[n_max + 1] - HARM[n_max - 1]) / (2.0 * HARM[n_max] - HARM[n_max - 1] - HARM[n_max + 1])));
-	if (T <= 0) return 1;
+	const complex<double> interpolationDenominator =
+		2.0 * harmonics[n_max] - harmonics[n_max - 1] - harmonics[n_max + 1];
+	if (abs(interpolationDenominator) <= (std::numeric_limits<double>::epsilon)())
+		return err::kNumericalFailure;
+	const double correction = real(
+		(harmonics[n_max + 1] - harmonics[n_max - 1]) / interpolationDenominator);
+	const double periodDenominator = n_max - correction;
+	if (!std::isfinite(periodDenominator) || periodDenominator <= 0.0)
+		return err::kNumericalFailure;
+	const double T = win / periodDenominator;
+	if (!std::isfinite(T) || T <= 0.0)
+		return err::kNumericalFailure;
 
 	double B[5][5] = { 0.0f, }, D[5] = { 0.0f, }; double X[5] = { 0.0f, };
 	double Scosfi = 0, Ssinfi = 0, Ssinficosfi = 0, SsinKfi = 0, ScosKfi = 0;
@@ -139,10 +164,11 @@ int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win) {
 	B[3][2] = B[2][3]; B[4][2] = B[2][4]; B[4][3] = B[3][4];
 
 	if (SLAU(B, 5, D, X) != 0) {
-		return 1;
+		return err::kNumericalFailure;
 	}
 
-	if (isnan(X[0]) || isnan(X[1]) || isnan(X[2]) || isnan(X[3]) || isnan(X[4]))return 1;
+	for (int i = 0; i < 5; ++i)
+		if (!std::isfinite(X[i])) return err::kNumericalFailure;
 
 	for (int i = 0; i < win; i++) {
 		double angle = double(i) * 2.0 * PI / T;
@@ -150,58 +176,49 @@ int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win) {
 	}
 
 	*Sgn_out_m = Sgn[(int)(win_2)] - Sgn_out[(int)(win_2)];
-	delete HARM;
-	return 0;
+	return err::kOk;
 }
 
 extern "C" __declspec(dllexport) int anti_spiral(double *Sgn_in, double *Sgn_out, int length, int win_f, int win_ma) {
-	if (win_ma < 1 || win_ma > win_f) win_ma = 1;
-	double *Income_buff = new double[win_f];
-	double *Output_buff = new double[win_f];
-	double *Sgn_ma_buff = new double[win_ma];
+	ClearSondeLastError();
+	if (!Sgn_in || !Sgn_out) {
+		SetSondeLastError("anti_spiral requires non-null input and output arrays.");
+		return err::kInvalidArgument;
+	}
+	if (length <= 0 || win_f < 6 || win_f > length || win_ma < 1 || win_ma > win_f) {
+		SetSondeLastError("anti_spiral requires length > 0, 6 <= win_f <= length and 1 <= win_ma <= win_f.");
+		return err::kInvalidArgument;
+	}
+	std::fill(Sgn_out, Sgn_out + length, 0.0);
+	std::vector<double> incomeBuffer(static_cast<size_t>(win_f), 0.0);
+	std::vector<double> outputBuffer(static_cast<size_t>(win_f), 0.0);
+	std::vector<double> movingAverageBuffer(static_cast<size_t>(win_ma), 0.0);
 	double Sgn_ma_summ = 0;
 	double Sgn_out_buff = 0;
-	double Out_m;
+	double Out_m = 0.0;
 	int w_ma = 0;
-	for (int i = 0; i < win_ma; i++) {
-		Sgn_ma_buff[i] = 0;
-	}
-	for (int i = 0; i < win_f; i++) {
-		Income_buff[i] = 0;
-		Output_buff[i] = 0;
-	}
-	for (int n = 0; n < length - win_f; n++) {
+	for (int n = 0; n <= length - win_f; n++) {
 		for (int i = 0; i < win_f; i++) {
-			Income_buff[i] = Sgn_in[n + i];
-		}
-		if (n < win_f / 2) {
-			Sgn_out[n] = 0;
+			incomeBuffer[i] = Sgn_in[n + i];
 		}
 
-		if (win_f > 4) {
-			if (!harmonics_clear(Income_buff, Output_buff, &Out_m, win_f))
+		if (harmonics_clear(incomeBuffer.data(), outputBuffer.data(), &Out_m, win_f) == err::kOk)
 				Sgn_out_buff = Out_m;
-			else
-				Sgn_out_buff = Sgn_in[n + win_f / 2];
-		}
 		else
 			Sgn_out_buff = Sgn_in[n + win_f / 2];
 
 		//скользящее среднее
-		Sgn_ma_summ -= Sgn_ma_buff[w_ma];
-		Sgn_ma_buff[w_ma] = Sgn_out_buff;
-		Sgn_ma_summ += Sgn_ma_buff[w_ma];
+		Sgn_ma_summ -= movingAverageBuffer[w_ma];
+		movingAverageBuffer[w_ma] = Sgn_out_buff;
+		Sgn_ma_summ += movingAverageBuffer[w_ma];
 
 		w_ma++;
 		if (w_ma == win_ma)w_ma = 0;
 
-		Sgn_out[n + win_f / 2 - win_ma / 2] = Sgn_ma_summ / (double)win_ma;
+		const int outputIndex = n + win_f / 2 - win_ma / 2;
+		if (outputIndex >= 0 && outputIndex < length)
+			Sgn_out[outputIndex] = Sgn_ma_summ / static_cast<double>(win_ma);
 	}
 
-	for (int n = length - win_f; n < length; n++) {
-		Sgn_out[n + win_f / 2 - win_ma / 2] = 0;
-	}
-
-	delete Income_buff; delete Output_buff;
-	return 0;
+	return err::kOk;
 }

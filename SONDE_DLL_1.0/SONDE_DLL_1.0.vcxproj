@@ -167,6 +167,9 @@
     <ClInclude Include="SondeState.h" />
     <ClInclude Include="SondeCore.h" />
     <ClInclude Include="MetrologyLoader.h" />
+    <ClInclude Include="DataFile.h" />
+    <ClInclude Include="ErrorState.h" />
+    <ClInclude Include="SondeApi.h" />
     <ClInclude Include="NeuroPredictor.h" />
     <ClInclude Include="neuro_api.h" />
     <ClInclude Include="Resistivity.h" />
@@ -181,6 +184,8 @@
     <ClCompile Include="SondeState.cpp" />
     <ClCompile Include="SondeCore.cpp" />
     <ClCompile Include="MetrologyLoader.cpp" />
+    <ClCompile Include="DataFile.cpp" />
+    <ClCompile Include="ErrorState.cpp" />
     <ClCompile Include="NeuroPredictor.cpp" />
     <ClCompile Include="Resistivity.cpp" />
     <ClCompile Include="PhaseProcessor.cpp" />
@@ -194,5 +199,17 @@
     </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <PropertyGroup>
+    <SondeNeuroRuntimeRoot>$(SolutionDir)runtime\win-$(Platform)</SondeNeuroRuntimeRoot>
+  </PropertyGroup>
+  <Target Name="CopySondeNeuroRuntime" AfterTargets="Build"
+          Condition="Exists('$(SondeNeuroRuntimeRoot)')">
+    <ItemGroup>
+      <_SondeNeuroRuntimeFiles Include="$(SondeNeuroRuntimeRoot)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SondeNeuroRuntimeFiles)"
+          DestinationFolder="$(OutDir)%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
   <ImportGroup Label="ExtensionTargets" />
 </Project>

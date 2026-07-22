@@ -4,6 +4,9 @@
 #include "SondeCore.h"
 #include "Logger.h"
 #include "Constants.h"
+#include "ErrorState.h"
+
+#include <sstream>
 
 using namespace std;
 
@@ -117,42 +120,42 @@ void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
 		if (condition == 0b00011111 || condition == 0b11111111) {// работают все 5 передатчиков
 			K[T1][T1] = +0.75f;  K[T1][T2] = +0.50f; K[T1][T3] = -0.25f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.25f;  K[T2][T2] = +0.50f; K[T2][T3] = +0.25f; K[T2][T4] = +0.00f; K[T2][T5] = +0.00f;
-			K[T3][T1] = +0.00f;  K[T3][T3] = +0.25f; K[T3][T3] = +0.50f; K[T3][T4] = +0.25f; K[T3][T5] = +0.00f;
+			K[T3][T1] = +0.00f;  K[T3][T2] = +0.25f; K[T3][T3] = +0.50f; K[T3][T4] = +0.25f; K[T3][T5] = +0.00f;
 			K[T4][T1] = +0.00f;  K[T4][T2] = +0.00f; K[T4][T3] = +0.25f; K[T4][T4] = +0.50f; K[T4][T5] = +0.25f;
 			K[T5][T1] = +0.00f;  K[T5][T2] = +0.00f; K[T5][T3] = -0.25f; K[T5][T4] = +0.50f; K[T5][T5] = +0.75f;
 		}
 		else if (condition == 0b00011110) {// не работает  1й передатчик
 			K[T1][T1] = +0.00f;  K[T1][T2] = +1.25f; K[T1][T3] = +0.50f; K[T1][T4] = -0.75f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.00f;  K[T2][T2] = +0.75f; K[T2][T3] = +0.50f; K[T2][T4] = -0.25f; K[T2][T5] = +0.00f;
-			K[T3][T1] = +0.00f;  K[T3][T3] = +0.25f; K[T3][T3] = +0.50f; K[T3][T4] = +0.25f; K[T3][T5] = +0.00f;
+			K[T3][T1] = +0.00f;  K[T3][T2] = +0.25f; K[T3][T3] = +0.50f; K[T3][T4] = +0.25f; K[T3][T5] = +0.00f;
 			K[T4][T1] = +0.00f;  K[T4][T2] = +0.00f; K[T4][T3] = +0.25f; K[T4][T4] = +0.50f; K[T4][T5] = +0.25f;
 			K[T5][T1] = +0.00f;  K[T5][T2] = +0.00f; K[T5][T3] = -0.25f; K[T5][T4] = +0.50f; K[T5][T5] = +0.75f;
 		}
 		else if (condition == 0b00011101) {// не работает  2й передатчик
 			K[T1][T1] = +1.25f;  K[T1][T2] = +0.00f; K[T1][T3] = -0.75f; K[T1][T4] = +0.50f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.75f;  K[T2][T2] = +0.00f; K[T2][T3] = -0.25f; K[T2][T4] = +0.50f; K[T2][T5] = +0.00f;
-			K[T3][T1] = +0.00f;  K[T3][T3] = +0.00f; K[T3][T3] = +0.75f; K[T3][T4] = +0.50f; K[T3][T5] = -0.25f;
+			K[T3][T1] = +0.00f;  K[T3][T2] = +0.00f; K[T3][T3] = +0.75f; K[T3][T4] = +0.50f; K[T3][T5] = -0.25f;
 			K[T4][T1] = +0.00f;  K[T4][T2] = +0.00f; K[T4][T3] = +0.25f; K[T4][T4] = +0.50f; K[T4][T5] = +0.25f;
 			K[T5][T1] = +0.00f;  K[T5][T2] = +0.00f; K[T5][T3] = -0.25f; K[T5][T4] = +0.50f; K[T5][T5] = +0.75f;
 		}
 		else if (condition == 0b00011011) {// не работает  3й передатчик
 			K[T1][T1] = +0.50f;  K[T1][T2] = +0.75f; K[T1][T3] = +0.00f; K[T1][T4] = -0.25f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.00f;  K[T2][T2] = +1.25f; K[T2][T3] = +0.00f; K[T2][T4] = -0.75f; K[T2][T5] = +0.50f;
-			K[T3][T1] = +0.00f;  K[T3][T3] = +0.75f; K[T3][T3] = +0.00f; K[T3][T4] = -0.25f; K[T3][T5] = +0.50f;
-			K[T4][T1] = +0.00f;  K[T4][T2] = +0.25f; K[T4][T3] = +0.00f; K[T4][T4] = +0.25f; K[T4][T5] = +0.05f;
-			K[T5][T1] = +0.00f;  K[T5][T2] = -0.25f; K[T5][T3] = +0.00f; K[T5][T4] = +0.75f; K[T5][T5] = +0.05f;
+			K[T3][T1] = +0.00f;  K[T3][T2] = +0.75f; K[T3][T3] = +0.00f; K[T3][T4] = -0.25f; K[T3][T5] = +0.50f;
+			K[T4][T1] = +0.00f;  K[T4][T2] = +0.25f; K[T4][T3] = +0.00f; K[T4][T4] = +0.25f; K[T4][T5] = +0.50f;
+			K[T5][T1] = +0.00f;  K[T5][T2] = -0.25f; K[T5][T3] = +0.00f; K[T5][T4] = +0.75f; K[T5][T5] = +0.50f;
 		}
 		else if (condition == 0b00010111) {// не работает  4й передатчик
 			K[T1][T1] = +0.75f;  K[T1][T2] = +0.50f; K[T1][T3] = -0.25f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.25f;  K[T2][T2] = +0.50f; K[T2][T3] = +0.25f; K[T2][T4] = +0.00f; K[T2][T5] = +0.00f;
-			K[T3][T1] = -0.25f;  K[T3][T3] = +0.50f; K[T3][T3] = +0.75f; K[T3][T4] = +0.00f; K[T3][T5] = +0.00f;
+			K[T3][T1] = -0.25f;  K[T3][T2] = +0.50f; K[T3][T3] = +0.75f; K[T3][T4] = +0.00f; K[T3][T5] = +0.00f;
 			K[T4][T1] = +0.00f;  K[T4][T2] = +0.50f; K[T4][T3] = -0.25f; K[T4][T4] = +0.00f; K[T4][T5] = +0.75f;
 			K[T5][T1] = +0.00f;  K[T5][T2] = +0.50f; K[T5][T3] = -0.75f; K[T5][T4] = +0.00f; K[T5][T5] = +1.25f;
 		}
 		else if (condition == 0b00001111) {// не работает  5й передатчик
 			K[T1][T1] = +0.75f;  K[T1][T2] = +0.50f; K[T1][T3] = -0.25f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.25f;  K[T2][T2] = +0.50f; K[T2][T3] = +0.25f; K[T2][T4] = +0.00f; K[T2][T5] = +0.00f;
-			K[T3][T1] = +0.05f;  K[T3][T3] = +0.25f; K[T3][T3] = +0.50f; K[T3][T4] = +0.25f; K[T3][T5] = +0.00f;
+			K[T3][T1] = +0.50f;  K[T3][T2] = +0.25f; K[T3][T3] = +0.50f; K[T3][T4] = +0.25f; K[T3][T5] = +0.00f;
 			K[T4][T1] = +0.00f;  K[T4][T2] = -0.25f; K[T4][T3] = +0.50f; K[T4][T4] = +0.75f; K[T4][T5] = +0.00f;
 			K[T5][T1] = +0.00f;  K[T5][T2] = -0.75f; K[T5][T3] = +0.50f; K[T5][T4] = +1.25f; K[T5][T5] = +0.00f;
 		}
@@ -270,26 +273,76 @@ void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
 // Экспортируемые функции извлечения и обработки фаз.
 // --------------------------------------------------------------------------
 
-extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, Ro *rho, int shift) {
-	uint8_t *base = (uint8_t*)Data + shift;
-	const uint32_t frame_signature = *(uint32_t*)base;
+namespace {
 
-	// Защита от рассинхронизации раскладки: кадр данных и загруженный файл
-	// метрологии обязаны относиться к одному прибору. Несовпадение сигнатур
-	// означает, что структура кадра не соответствует метрологии, поэтому разбор
-	// прекращается и возвращается явный код ошибки. Вызывающая сторона обязана
-	// уведомить пользователя, а не использовать заведомо некорректные данные.
-	if (global_signature != 0 && frame_signature != global_signature) {
+bool is_supported_frame_type(const ID& tool) {
+	return IsSupportedTool(tool);
+}
+
+int get_validated_frame(void* data, int shift, const GP_DATA** frame) {
+	if (!data || !frame || shift < 0)
+	{
+		SetSondeLastError("Frame pointer, output pointer and non-negative shift are required.");
+		return err::kInvalidArgument;
+	}
+
+	const GP_DATA* gp = reinterpret_cast<const GP_DATA*>(
+		reinterpret_cast<const uint8_t*>(data) + shift);
+	if (!is_supported_frame_type(get_sonde_id(gp->signature))) {
+		SetSondeLastError("The data frame contains an unsupported tool signature.");
+		return err::kUnsupportedType;
+	}
+
+	if (!sonde_initialized || global_signature == 0) {
+		SetSondeLastError("sonde_set must complete successfully before frame processing.");
+		return err::kMetrologyNotInitialized;
+	}
+
+	if (gp->signature != global_signature) {
+		std::ostringstream message;
+		message << "Metrology/data signature mismatch: metrology=" << global_signature
+			<< ", frame=" << gp->signature << ".";
+		SetSondeLastError(message.str());
 		return err::kFrameSignatureMismatch;
 	}
+
+	*frame = gp;
+	return err::kOk;
+}
+
+} // namespace
+
+extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, Ro *rho, int shift) {
+	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
+	ClearSondeLastError();
+	if (!phase || !rho)
+	{
+		SetSondeLastError("get_express_data requires non-null PHASE and Ro outputs.");
+		return err::kInvalidArgument;
+	}
+
+	const GP_DATA* gp = nullptr;
+	int validationResult = get_validated_frame(Data, shift, &gp);
+	if (validationResult != err::kOk)
+		return validationResult;
 
 	// Все поддерживаемые приборы поставляют данные в актуальной канонической
 	// структуре GP_DATA[2][5]: симметризованные фазы phase_smt и УЭС rho_smt
 	// уже разложены по [частота][передатчик], поэтому достаточно прямого
 	// копирования без типозависимого маппинга.
-	const GP_DATA *gp = (const GP_DATA*)base;
-	for (int freq = 0; freq < 2; freq++) {
-		for (int Tx = 0; Tx < 5; Tx++) {
+	for (int freq = 0; freq < config::kFreqCount; freq++) {
+		for (int Tx = 0; Tx < config::kMaxTx; Tx++) {
+			phase->Phase[freq][Tx] = 0.0f;
+			rho->Ro[freq][Tx] = 0.0f;
+		}
+		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
+			if (!std::isfinite(gp->phase_smt[freq][Tx]) || !std::isfinite(gp->rho_smt[freq][Tx])) {
+				std::ostringstream message;
+				message << "get_express_data received a non-finite value at F" << freq
+					<< " T" << (Tx + 1) << ".";
+				SetSondeLastError(message.str());
+				return err::kDataFileLayout;
+			}
 			phase->Phase[freq][Tx] = gp->phase_smt[freq][Tx];
 			rho->Ro[freq][Tx] = gp->rho_smt[freq][Tx];
 		}
@@ -298,71 +351,106 @@ extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, 
 }
 
 extern "C" __declspec(dllexport)  int get_Phase(void *Data, PHASE *D_phase, int shift) {
-	GP_DATA gp_data;
-	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
-	if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
-		gp_data = *(GP_DATA*)((uint8_t*)Data + +shift);
-		if (gp_data.signature == global_signature) {
-			for (int freq = 0; freq < 2; freq++) {
-				//первый приемник смотрит на первый передатчик разница фаз rx1-rX2
-				D_phase->Phase[freq][T1] = +(gp_data.DELTA_PH[freq][T1] - Air[freq][T1]);
-				D_phase->Phase[freq][T2] = -(gp_data.DELTA_PH[freq][T2] - Air[freq][T2]);
-				D_phase->Phase[freq][T3] = +(gp_data.DELTA_PH[freq][T3] - Air[freq][T3]);
-				D_phase->Phase[freq][T4] = -(gp_data.DELTA_PH[freq][T4] - Air[freq][T4]);
-				D_phase->Phase[freq][T5] = +(gp_data.DELTA_PH[freq][T5] - Air[freq][T5]);
-			}
-			return 0;
-		}
-		else return 2;//если сигнатура кадра не соответствует сигнатуре полученной из файла метрологии при сонде тест
+	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
+	ClearSondeLastError();
+	if (!D_phase)
+	{
+		SetSondeLastError("get_Phase requires a non-null PHASE output.");
+		return err::kInvalidArgument;
 	}
-	else return  1;
+
+	const GP_DATA* gp = nullptr;
+	int validationResult = get_validated_frame(Data, shift, &gp);
+	if (validationResult != err::kOk)
+		return validationResult;
+
+	for (int freq = 0; freq < config::kFreqCount; freq++) {
+		for (int Tx = 0; Tx < config::kMaxTx; ++Tx)
+			D_phase->Phase[freq][Tx] = 0.0f;
+
+		// DELTA_PH уже приведена прошивкой к фазовому диапазону функцией d_ph.
+		// Здесь для отдельного пути DELTA_PH -> simmetry ровно один раз применяются
+		// Air_zz и ориентация Rx_Position. Готовая phase_smt этим путём не проходит.
+		for (uint32_t Tx = 0; Tx < global_active_tx; ++Tx) {
+			if (!std::isfinite(gp->DELTA_PH[freq][Tx])) {
+				std::ostringstream message;
+				message << "get_Phase received a non-finite DELTA_PH at F" << freq
+					<< " T" << (Tx + 1) << ".";
+				SetSondeLastError(message.str());
+				return err::kDataFileLayout;
+			}
+			float corrected = NormalizePhase(gp->DELTA_PH[freq][Tx]) - Air[freq][Tx];
+			if (RxPhaseOrientationSign(Tx, global_rx_position) < 0)
+				corrected = -corrected;
+			D_phase->Phase[freq][Tx] = NormalizePhase(corrected);
+		}
+	}
+	return err::kOk;
 }
 
 extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *condition, int shift) {
-	GP_DATA gp_data;
-	ID id = get_sonde_id(*(uint32_t*)((uint8_t*)Data + shift));
-	if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx || id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR || id.type == LWD_3Tx) {
-		gp_data = *(GP_DATA*)((uint8_t*)Data + shift);
-		*condition = gp_data.condition;
-		return 0;
+	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
+	ClearSondeLastError();
+	if (!condition)
+	{
+		SetSondeLastError("get_condition requires a non-null output pointer.");
+		return err::kInvalidArgument;
 	}
-	else return 1;
+
+	const GP_DATA* gp = nullptr;
+	int validationResult = get_validated_frame(Data, shift, &gp);
+	if (validationResult != err::kOk)
+		return validationResult;
+
+	*condition = gp->condition;
+	return err::kOk;
 }
 
 extern "C" __declspec(dllexport) int simmetry(PHASE *Phase_in, PHASE *Phase_smt, uint32_t condition) {
-	int N_Tx = 0;
+	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
+	ClearSondeLastError();
+	if (!Phase_in || !Phase_smt) {
+		SetSondeLastError("simmetry requires non-null input and output phase pointers.");
+		return err::kInvalidArgument;
+	}
+	if (!sonde_initialized) {
+		SetSondeLastError("sonde_set must complete successfully before simmetry.");
+		return err::kMetrologyNotInitialized;
+	}
+	const int N_Tx = static_cast<int>(global_active_tx);
 	//	                400  kGz  2000 kGz
 	//00000000 00000000 00012345 00012345
 	uint8_t cond_1freq[2] = { 0, };
-	cond_1freq[_400_kGz] = (uint8_t)(condition >> 8);
-	uint32_t buff = (condition << 24);
-	cond_1freq[_2000_kGz] = (uint8_t)(buff >> 24);
-
-	if (id.type == AUTONOM_5Tx || id.type == AUTONOM_5Tx_SDR) {
-		N_Tx = 5;
+	cond_1freq[_400_kGz] = static_cast<uint8_t>((condition >> 8) & 0xFFU);
+	cond_1freq[_2000_kGz] = static_cast<uint8_t>(condition & 0xFFU);
+	if (N_Tx < 3 || N_Tx > config::kMaxTx) {
+		SetSondeLastError("Current metrology contains an invalid active transmitter count.");
+		return err::kUnsupportedType;
 	}
-	else if (id.type == LWD_4Tx_NEW || id.type == LWD_4Tx || id.type == CARTOGRAPH_LWD_4Tx) {
-		N_Tx = 4;
-	}
-	else if (id.type == LWD_3Tx) {
-		N_Tx = 3;
-	}
-	else return 1;
 
 	float K[2][5][5] = { 0.0f, };
-	for (int freq = 0; freq < 2; freq++) {
-		for (int Tx = 0; Tx < 5; Tx++) {
+	for (int freq = 0; freq < config::kFreqCount; freq++) {
+		for (int Tx = 0; Tx < config::kMaxTx; Tx++) {
 			Phase_smt->Phase[freq][Tx] = 0.0f;
 		}
 	}
 
-	for (int freq = 0; freq < 2; freq++) {
+	for (int freq = 0; freq < config::kFreqCount; freq++) {
+		for (int tx = 0; tx < N_Tx; ++tx) {
+			if (!std::isfinite(Phase_in->Phase[freq][tx])) {
+				std::ostringstream message;
+				message << "simmetry received a non-finite phase at F" << freq
+					<< " T" << (tx + 1) << ".";
+				SetSondeLastError(message.str());
+				return err::kInvalidArgument;
+			}
+		}
 		formula_simmetry(K[freq], cond_1freq[freq], N_Tx);
-		for (int Tx = 0; Tx < 5; Tx++) {
-			for (int n = 0; n < 5; n++) {
+		for (int Tx = 0; Tx < N_Tx; Tx++) {
+			for (int n = 0; n < N_Tx; n++) {
 				Phase_smt->Phase[freq][Tx] += K[freq][Tx][n] * Phase_in->Phase[freq][n];
 			}
 		}
 	}
-	return 0;
+	return err::kOk;
 }

@@ -51,13 +51,17 @@ constexpr char kNeuroLastErrorFn[] = "GeoPredictor_GetLastError";
 constexpr char kLogFileName[] = "Test.txt";
 
 // Метрология.
-constexpr int kDefaultSondeDiameterMm = 90; // диаметр прибора по умолчанию (autonomy 1DDS)
-constexpr char kMetrologyExtension[] = "bin";
+constexpr int kDefaultAutonomSondeDiameterMm = 90;
+constexpr int kDefaultLwdSondeDiameterMm = 120;
+constexpr char kMetrologyExtension[] = ".bin";
+constexpr float kFirmwareMilligradPerRadian = 57297.0f;
 
 // Решатель УЭС методом золотого сечения (RO_dFI).
 constexpr float kRoSolverMin = 0.01f;          // минимальное УЭС поиска
 constexpr float kRoSolverMax = 7000.0f;        // максимальное УЭС поиска
-constexpr float kGoldenEpsilon = 0.0000005f;   // точность по фазе/амплитуде
+constexpr float kGoldenEpsilon = 0.0000005f;   // критерий совпадения фазы
+constexpr float kGoldenInfinityEpsilon = 0.000000005f;
+constexpr float kRoSolverInfinity = 7200.0f;
 constexpr float kGoldenFactor = 0.382f;        // коэффициент золотого сечения
 
 // Компенсация влияния скважины (DFI_bhole).
@@ -76,6 +80,16 @@ namespace err {
 constexpr int kOk = 0;
 constexpr int kMetrologyFile = 1;        // файл метрологии не открыт или не .bin
 constexpr int kFrameSignatureMismatch = 2; // сигнатура кадра != сигнатуре метрологии
+constexpr int kDataFile = 3;             // файл данных не открыт
+constexpr int kDataFileExtension = 4;    // поддерживаются только .DEV и .bin
+constexpr int kDataFileLayout = 5;       // размер/структура файла данных некорректны
+constexpr int kInvalidArgument = 6;      // обязательный указатель не задан
+constexpr int kMetrologyNotInitialized = 7; // sonde_set не был успешно вызван
+constexpr int kMetrologySize = 8;        // файл метрологии должен иметь размер 240 байт
+constexpr int kMetrologyLayout = 9;      // структура/сигнатура метрологии некорректна
+constexpr int kMetrologyGeometry = 10;   // активные L1/L2/F не заполнены
+constexpr int kMetrologyRxPosition = 11; // Rx_Position должен быть равен 0 или 1
+constexpr int kNumericalFailure = 12;    // численный алгоритм не смог получить конечный результат
 constexpr int kUnsupportedType = 100;    // неподдерживаемый тип прибора
 constexpr int kNeuroDllNotLoaded = 200;  // NEURO_TEST.dll не загружена
 constexpr int kNeuroFuncNotFound = 201;  // не найдены функции нейросети
