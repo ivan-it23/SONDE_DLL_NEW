@@ -4,7 +4,6 @@
 
 SONDE_PARAM param[2][5] = { 0.0f, };
 float Air[2][5] = { 0.0f, };
-float Air_att_dB[2][5] = { 0.0f, };
 float dfi_bh[2][5] = { 0.0f, };
 uint32_t global_signature = 0;
 ID id = {};
@@ -26,11 +25,9 @@ void CommitSondeState(
 	const ID& tool,
 	uint32_t activeTx,
 	const SONDE_PARAM newParam[2][5],
-	const float newAir[2][5],
-	const float newAirAttDb[2][5]) {
+	const float newAir[2][5]) {
 	std::memcpy(param, newParam, sizeof(param));
 	std::memcpy(Air, newAir, sizeof(Air));
-	std::memcpy(Air_att_dB, newAirAttDb, sizeof(Air_att_dB));
 	std::memset(dfi_bh, 0, sizeof(dfi_bh));
 	current_metrology = metrology;
 	global_signature = metrology.signature;

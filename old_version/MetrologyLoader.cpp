@@ -129,7 +129,7 @@ int read_metrology_file(const char* path, GP_METROLOGY* outMetro, uint32_t* outS
 	return err::kOk;
 }
 
-void fill_sonde_params(const GP_METROLOGY& metrologyIn, SONDE_PARAM param[2][5], float Air[2][5], float Air_att_dB[2][5]) {
+void fill_sonde_params(const GP_METROLOGY& metrologyIn, SONDE_PARAM param[2][5], float Air[2][5]) {
 	GP_METROLOGY metrology = metrologyIn;
 	const ToolCapabilities capabilities = GetToolCapabilities(metrology.signature);
 	if (metrology.D_sonde_mm == 0) {
@@ -141,17 +141,13 @@ void fill_sonde_params(const GP_METROLOGY& metrologyIn, SONDE_PARAM param[2][5],
 
 	std::memset(param, 0, sizeof(SONDE_PARAM) * config::kFreqCount * config::kMaxTx);
 	std::memset(Air, 0, sizeof(float) * config::kFreqCount * config::kMaxTx);
-	std::memset(Air_att_dB, 0, sizeof(float) * config::kFreqCount * config::kMaxTx);
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (int Tx = 0; Tx < capabilities.activeTx; Tx++) {
 			param[freq][Tx].L1 = float(metrology.L1[Tx]) / 1000;
 			param[freq][Tx].L2 = float(metrology.L2[Tx]) / 1000;
 			param[freq][Tx].f = float(metrology.F[freq]) * 1000;
 			param[freq][Tx].D_sonde_m = float(metrology.D_sonde_mm) / 1000;
-			// Фазовые нули воздуха приводятся из милиградусов прошивки в радианы.
-			Air[freq][Tx] = metrology.Air_ph[freq][Tx] / config::kFirmwareMilligradPerRadian;
-			// Амплитудные нули воздуха хранятся в метрологии уже в децибелах.
-			Air_att_dB[freq][Tx] = metrology.Air_att_dB[freq][Tx];
+			Air[freq][Tx] = metrology.Air_zz[freq][Tx] / config::kFirmwareMilligradPerRadian;
 		}
 	}
 }

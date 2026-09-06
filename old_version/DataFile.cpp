@@ -70,30 +70,12 @@ extern "C" __declspec(dllexport) int get_data_file_info(
 
 	data.seekg(0, ios::end);
 	const streamoff fileSize = data.tellg();
-
-	// Размер кадра прибора определяется по struct_size из сигнатуры первого
-	// кадра: старая прошивка -> 240 байт, новая (с амплитудным каналом) -> 320.
-	if (fileSize < static_cast<streamoff>(headerSize + sizeof(uint32_t))) {
-		SetSondeLastError("Data file is too small to contain a single frame.");
-		return err::kDataFileLayout;
-	}
-	uint32_t probeSignature = 0;
-	data.seekg(headerSize, ios::beg);
-	data.read(reinterpret_cast<char*>(&probeSignature), sizeof(probeSignature));
-	if (!data) {
-		SetSondeLastError("Unable to read the data file signature.");
-		return err::kDataFileLayout;
-	}
-	const ID probeTool = get_sonde_id(probeSignature);
-	streamoff frameDataSize = static_cast<streamoff>(sizeof(GP_DATA));
-	if (probeTool.struct_size > 0 && probeTool.struct_size <= sizeof(GP_DATA))
-		frameDataSize = static_cast<streamoff>(probeTool.struct_size);
-	const streamoff recordSize = frameDataSize + headerSize;
+	const streamoff recordSize = static_cast<streamoff>(sizeof(GP_DATA) + headerSize);
 	if (fileSize <= 0 || recordSize <= 0 || fileSize % recordSize != 0) {
 		std::ostringstream message;
 		message << "Invalid data file size " << fileSize << " bytes for record size "
 			<< recordSize << " bytes (header=" << headerSize
-			<< ", frame=" << frameDataSize << ").";
+			<< ", GP_DATA=" << sizeof(GP_DATA) << ").";
 		SetSondeLastError(message.str());
 		if (debug == true) {
 			Test << "get_data_file_info invalid data layout: size=" << fileSize
@@ -113,9 +95,8 @@ extern "C" __declspec(dllexport) int get_data_file_info(
 		const streamoff payloadOffset = static_cast<streamoff>(frame) * recordSize + headerSize;
 		data.seekg(payloadOffset, ios::beg);
 
-		// Читаем ровно frameDataSize байт в обнулённую GP_DATA (усечение по struct_size).
 		GP_DATA current = {};
-		data.read(reinterpret_cast<char*>(&current), frameDataSize);
+		data.read(reinterpret_cast<char*>(&current), sizeof(current));
 		if (!data) {
 			SetSondeLastError("Data file is truncated while reading a GP_DATA frame.");
 			if (debug == true) Test << "get_data_file_info unable to read frame " << frame << endl;
@@ -125,9 +106,7 @@ extern "C" __declspec(dllexport) int get_data_file_info(
 		if (frame == 0)
 			firstSignature = current.signature;
 
-		// Сравниваем только идентификатор прибора (младшие 6 разрядов).
-		if ((current.signature % 1000000u) != (firstSignature % 1000000u) ||
-			(current.signature % 1000000u) != (global_signature % 1000000u)) {
+		if (current.signature != firstSignature || current.signature != global_signature) {
 			std::ostringstream message;
 			message << "Metrology/data signature mismatch at frame " << frame
 				<< ": metrology=" << global_signature

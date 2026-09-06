@@ -20,4 +20,4 @@ int validate_metrology(const GP_METROLOGY& metrology, ToolCapabilities* outCapab
 // Заполняет геометрические/частотные параметры зондов и поправки "нули воздуха"
 // по содержимому метрологии. Применяет диаметр прибора по умолчанию, если он
 // равен нулю.
-void fill_sonde_params(const GP_METROLOGY& metrology, SONDE_PARAM param[2][5], float Air[2][5], float Air_att_dB[2][5]);
+void fill_sonde_params(const GP_METROLOGY& metrology, SONDE_PARAM param[2][5], float Air[2][5]);

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="API">
+      <UniqueIdentifier>{88888888-8888-8888-8888-888888888888}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Config">
+      <UniqueIdentifier>{11111111-1111-1111-1111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{22222222-2222-2222-2222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Logging">
+      <UniqueIdentifier>{33333333-3333-3333-3333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Metrology">
+      <UniqueIdentifier>{44444444-4444-4444-4444-444444444444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Neuro">
+      <UniqueIdentifier>{55555555-5555-5555-5555-555555555555}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Processing">
+      <UniqueIdentifier>{66666666-6666-6666-6666-666666666666}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Signal">
+      <UniqueIdentifier>{77777777-7777-7777-7777-777777777777}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Precompiled">
+      <UniqueIdentifier>{99999999-9999-9999-9999-999999999999}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Constants.h">
+      <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="Types.h">
+      <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="variable.h">
+      <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="SondeCore.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="SondeState.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.h">
+      <Filter>Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="MetrologyLoader.h">
+      <Filter>Metrology</Filter>
+    </ClInclude>
+    <ClInclude Include="DataFile.h">
+      <Filter>Processing</Filter>
+    </ClInclude>
+    <ClInclude Include="ErrorState.h">
+      <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="SondeApi.h">
+      <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="NeuroPredictor.h">
+      <Filter>Neuro</Filter>
+    </ClInclude>
+    <ClInclude Include="neuro_api.h">
+      <Filter>Neuro</Filter>
+    </ClInclude>
+    <ClInclude Include="Resistivity.h">
+      <Filter>Processing</Filter>
+    </ClInclude>
+    <ClInclude Include="PhaseProcessor.h">
+      <Filter>Processing</Filter>
+    </ClInclude>
+    <ClInclude Include="InvasionForward.h">
+      <Filter>Processing</Filter>
+    </ClInclude>
+    <ClInclude Include="AntiSpiral.h">
+      <Filter>Signal</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Precompiled</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Precompiled</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SONDE_DLL_1.0.cpp">
+      <Filter>API</Filter>
+    </ClCompile>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>API</Filter>
+    </ClCompile>
+    <ClCompile Include="SondeCore.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="SondeState.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Logger.cpp">
+      <Filter>Logging</Filter>
+    </ClCompile>
+    <ClCompile Include="MetrologyLoader.cpp">
+      <Filter>Metrology</Filter>
+    </ClCompile>
+    <ClCompile Include="DataFile.cpp">
+      <Filter>Processing</Filter>
+    </ClCompile>
+    <ClCompile Include="ErrorState.cpp">
+      <Filter>API</Filter>
+    </ClCompile>
+    <ClCompile Include="NeuroPredictor.cpp">
+      <Filter>Neuro</Filter>
+    </ClCompile>
+    <ClCompile Include="Resistivity.cpp">
+      <Filter>Processing</Filter>
+    </ClCompile>
+    <ClCompile Include="PhaseProcessor.cpp">
+      <Filter>Processing</Filter>
+    </ClCompile>
+    <ClCompile Include="InvasionForward.cpp">
+      <Filter>Processing</Filter>
+    </ClCompile>
+    <ClCompile Include="AntiSpiral.cpp">
+      <Filter>Signal</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Precompiled</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

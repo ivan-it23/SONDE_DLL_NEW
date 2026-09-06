@@ -8,23 +8,12 @@
 
 ID get_sonde_id(uint32_t signature) {
 	ID tool = {};
-	// Младшие 6 разрядов сигнатуры — идентификатор прибора, старшие разряды
-	// (signature / 1000000) — размер структуры данных прибора (версионирование).
-	tool.type = (signature % 1000000) / 1000;
-	tool.type_ = (signature % 1000000) / 100000;
-	tool.N_Tx = (signature % 100000) / 10000;
-	tool.mod = (signature % 10000) / 1000;
-	tool.number = (signature % 1000);
-	if ((signature / 1000000) == 0) {
-		// Старая прошивка не кодирует размер: канонический размер актуальных типов.
-		if (tool.type == LWD_4Tx_NEW || tool.type == CARTOGRAPH_LWD_4Tx ||
-			tool.type == AUTONOM_5Tx || tool.type == AUTONOM_5Tx_SDR || tool.type == LWD_3Tx) {
-			tool.struct_size = 240;
-		}
-	}
-	else {
-		tool.struct_size = signature / 1000000;
-	}
+	const uint32_t buff = signature & 0x000FFFFFU;
+	tool.type_ = buff / 100000;
+	tool.N_Tx = (buff % 100000) / 10000;
+	tool.mod = (buff % 10000) / 1000;
+	tool.number = (buff % 1000);
+	tool.type = buff / 1000;
 	return tool;
 }
 

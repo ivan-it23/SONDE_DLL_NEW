@@ -7,8 +7,6 @@
 #include "ErrorState.h"
 
 #include <sstream>
-#include <cstring>
-#include <cmath>
 
 using namespace std;
 
@@ -281,20 +279,16 @@ bool is_supported_frame_type(const ID& tool) {
 	return IsSupportedTool(tool);
 }
 
-// Копирует кадр прибора в локальную (обнулённую) GP_DATA с усечением по
-// struct_size — безопасно и для старых 240-байтовых, и для новых 320-байтовых
-// кадров. Возвращает распознанный идентификатор прибора через outTool.
-int get_validated_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
-	if (!data || !outFrame || shift < 0)
+int get_validated_frame(void* data, int shift, const GP_DATA** frame) {
+	if (!data || !frame || shift < 0)
 	{
 		SetSondeLastError("Frame pointer, output pointer and non-negative shift are required.");
 		return err::kInvalidArgument;
 	}
 
-	uint32_t signature = 0;
-	std::memcpy(&signature, reinterpret_cast<const uint8_t*>(data) + shift, sizeof(signature));
-	const ID tool = get_sonde_id(signature);
-	if (!is_supported_frame_type(tool)) {
+	const GP_DATA* gp = reinterpret_cast<const GP_DATA*>(
+		reinterpret_cast<const uint8_t*>(data) + shift);
+	if (!is_supported_frame_type(get_sonde_id(gp->signature))) {
 		SetSondeLastError("The data frame contains an unsupported tool signature.");
 		return err::kUnsupportedType;
 	}
@@ -304,100 +298,91 @@ int get_validated_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 		return err::kMetrologyNotInitialized;
 	}
 
-	// Сравниваем только идентификатор прибора (младшие 6 разрядов): старшие
-	// разряды сигнатуры данных несут размер структуры и в метрологии могут быть 0.
-	if ((signature % 1000000u) != (global_signature % 1000000u)) {
+	if (gp->signature != global_signature) {
 		std::ostringstream message;
 		message << "Metrology/data signature mismatch: metrology=" << global_signature
-			<< ", frame=" << signature << ".";
+			<< ", frame=" << gp->signature << ".";
 		SetSondeLastError(message.str());
 		return err::kFrameSignatureMismatch;
 	}
 
-	size_t bytes = sizeof(GP_DATA);
-	if (tool.struct_size > 0 && tool.struct_size < sizeof(GP_DATA))
-		bytes = tool.struct_size;
-	std::memset(outFrame, 0, sizeof(GP_DATA));
-	std::memcpy(outFrame, reinterpret_cast<const uint8_t*>(data) + shift, bytes);
-	if (outTool)
-		*outTool = tool;
+	*frame = gp;
 	return err::kOk;
 }
 
 } // namespace
 
-extern "C" __declspec(dllexport) int get_express_data(void *Data, CAL_SIGNAL *cal_signal, RHO *rho, int shift) {
+extern "C" __declspec(dllexport) int get_express_data(void *Data, PHASE *phase, Ro *rho, int shift) {
 	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
 	ClearSondeLastError();
-	if (!cal_signal || !rho)
+	if (!phase || !rho)
 	{
-		SetSondeLastError("get_express_data requires non-null CAL_SIGNAL and RHO outputs.");
+		SetSondeLastError("get_express_data requires non-null PHASE and Ro outputs.");
 		return err::kInvalidArgument;
 	}
 
-	GP_DATA gp = {};
-	ID tool = {};
-	int validationResult = get_validated_frame(Data, shift, &gp, &tool);
+	const GP_DATA* gp = nullptr;
+	int validationResult = get_validated_frame(Data, shift, &gp);
 	if (validationResult != err::kOk)
 		return validationResult;
 
-	std::memset(cal_signal, 0, sizeof(CAL_SIGNAL));
-	std::memset(rho, 0, sizeof(RHO));
-
-	// Симметризованные фазы/УЭС уже разложены прибором по [частота][передатчик].
-	// Амплитудные каналы читаются только если прибор прислал расширенную структуру.
-	const bool hasAtt = tool.struct_size >= (offsetof(GP_DATA, att_smt_dB) + sizeof(gp.att_smt_dB));
+	// Все поддерживаемые приборы поставляют данные в актуальной канонической
+	// структуре GP_DATA[2][5]: симметризованные фазы phase_smt и УЭС rho_smt
+	// уже разложены по [частота][передатчик], поэтому достаточно прямого
+	// копирования без типозависимого маппинга.
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (int Tx = 0; Tx < config::kMaxTx; Tx++) {
-			cal_signal->phase[freq][Tx] = gp.phase_smt[freq][Tx];
-			rho->rho_ph[freq][Tx] = gp.rho_smt[freq][Tx];
-			if (hasAtt) {
-				cal_signal->att_dB[freq][Tx] = gp.att_smt_dB[freq][Tx];
-				rho->rho_att[freq][Tx] = gp.rho_att_smt[freq][Tx];
+			phase->Phase[freq][Tx] = 0.0f;
+			rho->Ro[freq][Tx] = 0.0f;
+		}
+		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
+			if (!std::isfinite(gp->phase_smt[freq][Tx]) || !std::isfinite(gp->rho_smt[freq][Tx])) {
+				std::ostringstream message;
+				message << "get_express_data received a non-finite value at F" << freq
+					<< " T" << (Tx + 1) << ".";
+				SetSondeLastError(message.str());
+				return err::kDataFileLayout;
 			}
+			phase->Phase[freq][Tx] = gp->phase_smt[freq][Tx];
+			rho->Ro[freq][Tx] = gp->rho_smt[freq][Tx];
 		}
 	}
 	return err::kOk;
 }
 
-// Калибровка сырых измерений кадра в фазовый и амплитудный (затухание) сигналы:
-// фазы — DELTA_PH за вычетом нулей воздуха; затухания — 20*log10(AM_RX_2/AM_RX_1)
-// за вычетом амплитудных нулей воздуха. Знак чередуется по передатчикам.
-extern "C" __declspec(dllexport) int get_cal_signal(void *Data, CAL_SIGNAL *cal_signal, int shift) {
+extern "C" __declspec(dllexport)  int get_Phase(void *Data, PHASE *D_phase, int shift) {
 	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
 	ClearSondeLastError();
-	if (!cal_signal)
+	if (!D_phase)
 	{
-		SetSondeLastError("get_cal_signal requires a non-null CAL_SIGNAL output.");
+		SetSondeLastError("get_Phase requires a non-null PHASE output.");
 		return err::kInvalidArgument;
 	}
 
-	GP_DATA gp = {};
-	ID tool = {};
-	int validationResult = get_validated_frame(Data, shift, &gp, &tool);
+	const GP_DATA* gp = nullptr;
+	int validationResult = get_validated_frame(Data, shift, &gp);
 	if (validationResult != err::kOk)
 		return validationResult;
 
-	std::memset(cal_signal, 0, sizeof(CAL_SIGNAL));
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
-		// Знак чередуется, стартуя с +1 для T1 (соответствует логике коллеги).
-		float sign = 1.0f;
-		for (int Tx = T1; Tx <= static_cast<int>(tool.N_Tx) && Tx < config::kMaxTx; Tx++) {
-			if (!std::isfinite(gp.DELTA_PH[freq][Tx])) {
+		for (int Tx = 0; Tx < config::kMaxTx; ++Tx)
+			D_phase->Phase[freq][Tx] = 0.0f;
+
+		// DELTA_PH уже приведена прошивкой к фазовому диапазону функцией d_ph.
+		// Здесь для отдельного пути DELTA_PH -> simmetry ровно один раз применяются
+		// Air_zz и ориентация Rx_Position. Готовая phase_smt этим путём не проходит.
+		for (uint32_t Tx = 0; Tx < global_active_tx; ++Tx) {
+			if (!std::isfinite(gp->DELTA_PH[freq][Tx])) {
 				std::ostringstream message;
-				message << "get_cal_signal received a non-finite DELTA_PH at F" << freq
+				message << "get_Phase received a non-finite DELTA_PH at F" << freq
 					<< " T" << (Tx + 1) << ".";
 				SetSondeLastError(message.str());
 				return err::kDataFileLayout;
 			}
-			cal_signal->phase[freq][Tx] = sign * (gp.DELTA_PH[freq][Tx] - Air[freq][Tx]);
-			// Амплитудное затухание считается только при наличии амплитудных нулей
-			// воздуха и ненулевой амплитуды на первом приёмнике.
-			if (fabs(Air_att_dB[freq][Tx]) > 1e-10 && gp.AM_RX_1[freq][Tx] != 0.0f) {
-				cal_signal->att_dB[freq][Tx] =
-					sign * 20.0f * log10f(gp.AM_RX_2[freq][Tx] / gp.AM_RX_1[freq][Tx]) - Air_att_dB[freq][Tx];
-			}
-			sign = -sign;
+			float corrected = NormalizePhase(gp->DELTA_PH[freq][Tx]) - Air[freq][Tx];
+			if (RxPhaseOrientationSign(Tx, global_rx_position) < 0)
+				corrected = -corrected;
+			D_phase->Phase[freq][Tx] = NormalizePhase(corrected);
 		}
 	}
 	return err::kOk;
@@ -412,21 +397,20 @@ extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *conditi
 		return err::kInvalidArgument;
 	}
 
-	GP_DATA gp = {};
-	int validationResult = get_validated_frame(Data, shift, &gp, nullptr);
+	const GP_DATA* gp = nullptr;
+	int validationResult = get_validated_frame(Data, shift, &gp);
 	if (validationResult != err::kOk)
 		return validationResult;
 
-	*condition = gp.condition;
+	*condition = gp->condition;
 	return err::kOk;
 }
 
-// Симметризация фазового и амплитудного каналов одной матрицей K.
-extern "C" __declspec(dllexport) int simmetry(CAL_SIGNAL *cal_signal_in, CAL_SIGNAL *cal_signal_smt, uint32_t condition) {
+extern "C" __declspec(dllexport) int simmetry(PHASE *Phase_in, PHASE *Phase_smt, uint32_t condition) {
 	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
 	ClearSondeLastError();
-	if (!cal_signal_in || !cal_signal_smt) {
-		SetSondeLastError("simmetry requires non-null input and output CAL_SIGNAL pointers.");
+	if (!Phase_in || !Phase_smt) {
+		SetSondeLastError("simmetry requires non-null input and output phase pointers.");
 		return err::kInvalidArgument;
 	}
 	if (!sonde_initialized) {
@@ -447,17 +431,15 @@ extern "C" __declspec(dllexport) int simmetry(CAL_SIGNAL *cal_signal_in, CAL_SIG
 	float K[2][5][5] = { 0.0f, };
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (int Tx = 0; Tx < config::kMaxTx; Tx++) {
-			cal_signal_smt->phase[freq][Tx] = 0.0f;
-			cal_signal_smt->att_dB[freq][Tx] = 0.0f;
+			Phase_smt->Phase[freq][Tx] = 0.0f;
 		}
 	}
 
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (int tx = 0; tx < N_Tx; ++tx) {
-			if (!std::isfinite(cal_signal_in->phase[freq][tx]) ||
-				!std::isfinite(cal_signal_in->att_dB[freq][tx])) {
+			if (!std::isfinite(Phase_in->Phase[freq][tx])) {
 				std::ostringstream message;
-				message << "simmetry received a non-finite signal at F" << freq
+				message << "simmetry received a non-finite phase at F" << freq
 					<< " T" << (tx + 1) << ".";
 				SetSondeLastError(message.str());
 				return err::kInvalidArgument;
@@ -466,8 +448,7 @@ extern "C" __declspec(dllexport) int simmetry(CAL_SIGNAL *cal_signal_in, CAL_SIG
 		formula_simmetry(K[freq], cond_1freq[freq], N_Tx);
 		for (int Tx = 0; Tx < N_Tx; Tx++) {
 			for (int n = 0; n < N_Tx; n++) {
-				cal_signal_smt->phase[freq][Tx] += K[freq][Tx][n] * cal_signal_in->phase[freq][n];
-				cal_signal_smt->att_dB[freq][Tx] += K[freq][Tx][n] * cal_signal_in->att_dB[freq][n];
+				Phase_smt->Phase[freq][Tx] += K[freq][Tx][n] * Phase_in->Phase[freq][n];
 			}
 		}
 	}

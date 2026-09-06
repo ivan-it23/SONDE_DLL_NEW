@@ -11,11 +11,8 @@
 // файла метрологии.
 extern SONDE_PARAM param[2][5];
 
-// Фазовые поправки "нули воздуха" [частота][Tx], рад.
+// Поправки "нули воздуха" [частота][Tx].
 extern float Air[2][5];
-
-// Амплитудные поправки "нули воздуха" [частота][Tx], дБ.
-extern float Air_att_dB[2][5];
 
 // Фазовые поправки за влияние скважины [частота][Tx] (borehole_offset).
 extern float dfi_bh[2][5];
@@ -39,5 +36,4 @@ void CommitSondeState(
 	const ID& tool,
 	uint32_t activeTx,
 	const SONDE_PARAM newParam[2][5],
-	const float newAir[2][5],
-	const float newAirAttDb[2][5]);
+	const float newAir[2][5]);

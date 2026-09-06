@@ -20,7 +20,7 @@ const float Grad = static_cast<float>(180.0 / PI);
 // Сигнатурные коды типов приборов ЭМК.
 // --------------------------------------------------------------------------
 #define CARTOGRAPH         351
-#define CARTOGRAPH_LWD_4Tx 349
+#define CARTOGRAPH_LWD_4Tx 359
 #define AUTONOM_4Tx        141
 #define AUTONOM_5Tx        151
 #define AUTONOM_5Tx_SDR    152
@@ -57,9 +57,8 @@ constexpr char kMetrologyExtension[] = ".bin";
 constexpr float kFirmwareMilligradPerRadian = 57297.0f;
 
 // Решатель УЭС методом золотого сечения (RO_dFI).
-constexpr float kRoSolverMin = 0.01f;          // минимальное УЭС поиска (фазовый канал)
-constexpr float kRoSolverMax = 7000.0f;        // максимальное УЭС поиска (фазовый канал)
-constexpr float kRoAttSolverMax = 1000.0f;     // максимальное УЭС поиска (амплитудный канал)
+constexpr float kRoSolverMin = 0.01f;          // минимальное УЭС поиска
+constexpr float kRoSolverMax = 7000.0f;        // максимальное УЭС поиска
 constexpr float kGoldenEpsilon = 0.0000005f;   // критерий совпадения фазы
 constexpr float kGoldenInfinityEpsilon = 0.000000005f;
 constexpr float kRoSolverInfinity = 7200.0f;

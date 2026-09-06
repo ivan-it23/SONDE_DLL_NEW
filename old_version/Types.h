@@ -65,20 +65,16 @@ struct IQA {
 	double Angle;
 };
 
-// Калиброванный сигнал зонда: фазовый и амплитудный (затухание в дБ) каналы.
-struct CAL_SIGNAL {
-	float phase[2][5];   // симметризованные фазы [400, 2000][T1-T5], рад
-	float att_dB[2][5];  // симметризованные затухания [400, 2000][T1-T5], дБ
+struct PHASE {
+	float Phase[2][5];
 	float Depth;
 };
 
-// УЭС по фазовому и амплитудному каналам + параметры зоны проникновения.
-struct RHO {
-	float rho_ph[2][5];  // фазовое УЭС [400, 2000][T1-T5]
-	float rho_att[2][5]; // амплитудное УЭС [400, 2000][T1-T5]
-	float rho_p[2];      // УЭС пласта (зона проникновения)
-	float R_zp[2];       // радиус зоны проникновения, см
-	float rho_zp[2];     // УЭС зоны проникновения
+struct Ro {
+	float Ro[2][5];
+	float Ro_p[2];
+	float R_zp[2];
+	float Ro_zp[2];
 	float Depth;
 };
 
@@ -115,8 +111,6 @@ struct GP_DATA {
 	float ZERO_AM_RX_2[2];    // амплитуды на втором приемнике [400, 2000] при молчащих передатчиках
 	float DELTA_PH[2][5];     // сырая разница фаз [400, 2000][T1 - T5]
 	float ZERO_dPH[2];        // разница фаз молчащих передатчиков
-	float rho_att_smt[2][5];  // амплитудные УЭС, рассчитанные на контроллере [400, 2000][T1-T5]
-	float att_smt_dB[2][5];   // симметризованные децибельные затухания [400, 2000][T1-T5]
 };
 
 struct GP_METROLOGY {
@@ -125,13 +119,12 @@ struct GP_METROLOGY {
 	uint16_t L1[5];
 	uint16_t L2[5];
 	uint16_t F[2];
-	int16_t Air_ph[2][5];     // фазовые нули воздуха (было Air_zz)
-	int16_t min_amp[2][5];    // минимальные амплитуды (было Air_zz_amt)
+	int16_t Air_zz[2][5];
+	int16_t Air_zz_amt[2][5];
 	uint32_t D_sonde_mm;
 	uint32_t work_type;
-	uint32_t Rx_Position;     // 0: R1->T1, 1: R1->T2
-	float Air_att_dB[2][5];   // амплитудные нули воздуха, дБ
-	uint16_t service[58];     // резерв до 240 байт
+	uint32_t Rx_Position; // 0: R1->T1, 1: R1->T2
+	uint16_t service[78]; // резерв до 240 байт
 };
 
 struct INF_CYL {
@@ -139,7 +132,6 @@ struct INF_CYL {
 };
 
 struct ID {
-	uint32_t struct_size; // размер структуры данных прибора из старших разрядов сигнатуры
 	uint32_t type_;
 	uint32_t N_Tx;
 	uint32_t mod;
@@ -149,22 +141,19 @@ struct ID {
 
 #pragma pack(pop)
 
-static_assert(sizeof(GP_DATA) == 320, "GP_DATA binary layout must be 320 bytes");
+static_assert(sizeof(GP_DATA) == 240, "GP_DATA binary layout must be 240 bytes");
 static_assert(offsetof(GP_DATA, signature) == 0, "GP_DATA.signature offset mismatch");
 static_assert(offsetof(GP_DATA, DELTA_PH) == 192, "GP_DATA.DELTA_PH offset mismatch");
 static_assert(offsetof(GP_DATA, ZERO_dPH) == 232, "GP_DATA.ZERO_dPH offset mismatch");
-static_assert(offsetof(GP_DATA, rho_att_smt) == 240, "GP_DATA.rho_att_smt offset mismatch");
-static_assert(offsetof(GP_DATA, att_smt_dB) == 280, "GP_DATA.att_smt_dB offset mismatch");
 
 static_assert(sizeof(GP_METROLOGY) == 240, "GP_METROLOGY binary layout must be 240 bytes");
 static_assert(offsetof(GP_METROLOGY, signature) == 0, "GP_METROLOGY.signature offset mismatch");
 static_assert(offsetof(GP_METROLOGY, L1) == 8, "GP_METROLOGY.L1 offset mismatch");
 static_assert(offsetof(GP_METROLOGY, L2) == 18, "GP_METROLOGY.L2 offset mismatch");
 static_assert(offsetof(GP_METROLOGY, F) == 28, "GP_METROLOGY.F offset mismatch");
-static_assert(offsetof(GP_METROLOGY, Air_ph) == 32, "GP_METROLOGY.Air_ph offset mismatch");
-static_assert(offsetof(GP_METROLOGY, min_amp) == 52, "GP_METROLOGY.min_amp offset mismatch");
+static_assert(offsetof(GP_METROLOGY, Air_zz) == 32, "GP_METROLOGY.Air_zz offset mismatch");
+static_assert(offsetof(GP_METROLOGY, Air_zz_amt) == 52, "GP_METROLOGY.Air_zz_amt offset mismatch");
 static_assert(offsetof(GP_METROLOGY, D_sonde_mm) == 72, "GP_METROLOGY.D_sonde_mm offset mismatch");
 static_assert(offsetof(GP_METROLOGY, work_type) == 76, "GP_METROLOGY.work_type offset mismatch");
 static_assert(offsetof(GP_METROLOGY, Rx_Position) == 80, "GP_METROLOGY.Rx_Position offset mismatch");
-static_assert(offsetof(GP_METROLOGY, Air_att_dB) == 84, "GP_METROLOGY.Air_att_dB offset mismatch");
-static_assert(offsetof(GP_METROLOGY, service) == 124, "GP_METROLOGY.service offset mismatch");
+static_assert(offsetof(GP_METROLOGY, service) == 84, "GP_METROLOGY.service offset mismatch");

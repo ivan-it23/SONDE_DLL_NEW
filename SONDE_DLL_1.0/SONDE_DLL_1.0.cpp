@@ -41,7 +41,8 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *rese
 	const ToolCapabilities capabilities = GetToolCapabilities(signature);
 	SONDE_PARAM candidateParam[2][5] = {};
 	float candidateAir[2][5] = {};
-	fill_sonde_params(metrology, candidateParam, candidateAir);
+	float candidateAirAttDb[2][5] = {};
+	fill_sonde_params(metrology, candidateParam, candidateAir, candidateAirAttDb);
 
 	// Нейросеть инициализируется только для актуальной структуры LWD 4Tx
 	// (включая картограф в режиме LWD). Остальные типы могут использовать
@@ -57,7 +58,8 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *rese
 		capabilities.identity,
 		capabilities.activeTx,
 		candidateParam,
-		candidateAir);
+		candidateAir,
+		candidateAirAttDb);
 
 	if (debug == true) {
 		Test << std::dec << "sonde_set signature " << signature
@@ -74,16 +76,18 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology, const char *rese
 	return err::kOk;
 }
 
+// Расчёт фазовых УЭС по зондам и параметров зоны проникновения нейросетью.
 // Коррекция за скважину к входам нейросети не применяется: модель обучена без учёта зоны проникновения.
-extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, float ro_bh, int D_bhole_mm, int pz_400, int pz_2000, SERVICE *service) {
+// Амплитудные УЭС (rho_att) здесь не заполняются — для них служит calculate_rho.
+extern "C" __declspec(dllexport) int calculate_Rho_AF(CAL_SIGNAL *cal_signal, RHO *Ro_3c, float ro_bh, int D_bhole_mm, int pz_400, int pz_2000, SERVICE *service) {
 	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
 	ClearSondeLastError();
 	(void)ro_bh;
 	(void)D_bhole_mm;
 	(void)pz_400;
 	(void)pz_2000;
-	if (!Phase || !Ro_3c || !service) {
-		SetSondeLastError("calculate_Rho_AF requires non-null PHASE, Ro and SERVICE pointers.");
+	if (!cal_signal || !Ro_3c || !service) {
+		SetSondeLastError("calculate_Rho_AF requires non-null CAL_SIGNAL, RHO and SERVICE pointers.");
 		return err::kInvalidArgument;
 	}
 	if (!sonde_initialized) {
@@ -93,9 +97,9 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (int Tx = 0; Tx < config::kMaxTx; Tx++)
-			Ro_3c->Ro[freq][Tx] = 0.0f;
-		Ro_3c->Ro_p[freq] = 0.0f;
-		Ro_3c->Ro_zp[freq] = 0.0f;
+			Ro_3c->rho_ph[freq][Tx] = 0.0f;
+		Ro_3c->rho_p[freq] = 0.0f;
+		Ro_3c->rho_zp[freq] = 0.0f;
 		Ro_3c->R_zp[freq] = 0.0f;
 		service->delta_percent_min[freq] = 0.0f;
 		service->delta_percent_start[freq] = 0.0f;
@@ -107,29 +111,29 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 		return err::kUnsupportedType;
 	}
 
-	// УЭС по зондам (4 передатчика) методом золотого сечения
+	// Фазовые УЭС по зондам (4 передатчика) методом золотого сечения.
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
-			if (!std::isfinite(Phase->Phase[freq][Tx])) {
+			if (!std::isfinite(cal_signal->phase[freq][Tx])) {
 				SetSondeLastError("calculate_Rho_AF received a non-finite active phase value.");
 				return err::kInvalidArgument;
 			}
-			Ro_3c->Ro[freq][Tx] = RO_dFI(param[freq][Tx], Phase->Phase[freq][Tx]);
+			Ro_3c->rho_ph[freq][Tx] = RO_ARG(param[freq][Tx], cal_signal->phase[freq][Tx]);
 		}
 	}
 
-	// нейросетевой расчёт параметров зоны проникновения (8 фаз -> Ro_p, Ro_zp, R_zp)
+	// нейросетевой расчёт параметров зоны проникновения (8 фаз -> rho_p, rho_zp, R_zp)
 	if (neuro_available()) {
 		float raw_inputs[config::kNeuroInputCount];
 		for (int Tx = 0; Tx < config::kNeuroInputCount / config::kFreqCount; Tx++) {
-			raw_inputs[Tx] = Phase->Phase[0][Tx] * Grad;
-			raw_inputs[Tx + 4] = Phase->Phase[1][Tx] * Grad;
+			raw_inputs[Tx] = cal_signal->phase[0][Tx] * Grad;
+			raw_inputs[Tx + 4] = cal_signal->phase[1][Tx] * Grad;
 		}
 		if (debug == true) {
 			Test << "[NEURO] sym_phases_400: ";
-			for (int Tx = 0; Tx < 4; Tx++) Test << Phase->Phase[0][Tx] << " ";
+			for (int Tx = 0; Tx < 4; Tx++) Test << cal_signal->phase[0][Tx] << " ";
 			Test << "sym_phases_2000: ";
-			for (int Tx = 0; Tx < 4; Tx++) Test << Phase->Phase[1][Tx] << " ";
+			for (int Tx = 0; Tx < 4; Tx++) Test << cal_signal->phase[1][Tx] << " ";
 			Test << "raw_inputs: ";
 			for (int i = 0; i < config::kNeuroInputCount; i++) Test << raw_inputs[i] << " ";
 			Test << endl;
@@ -138,7 +142,7 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 		int neuro_result = neuro_predict(raw_inputs, out_results);
 		if (neuro_result == err::kOk) {
 			// NEURO_TEST.dll возвращает: out[0] = r_inv (м), out[1] = rho_inv (Ом·м), out[2] = rho_form (Ом·м).
-			// R_zp хранится в структуре Ro в сантиметрах; ph_smt_zp переводит обратно в метры.
+			// R_zp хранится в структуре RHO в сантиметрах; ph_smt_zp переводит обратно в метры.
 			const float r_inv_m = out_results[0];
 			const float rho_inv = out_results[1];
 			const float rho_form = out_results[2];
@@ -152,13 +156,13 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 				Test << "[NEURO] predict raw: r_inv_m=" << r_inv_m
 				     << " rho_inv=" << rho_inv
 				     << " rho_form=" << rho_form << endl;
-				Test << "[NEURO] mapped: Ro_p=" << rho_form
-				     << " Ro_zp=" << rho_inv
+				Test << "[NEURO] mapped: rho_p=" << rho_form
+				     << " rho_zp=" << rho_inv
 				     << " R_zp_cm=" << r_inv_cm << endl;
 			}
 			for (int freq = 0; freq < config::kFreqCount; freq++) {
-				Ro_3c->Ro_p[freq] = rho_form;
-				Ro_3c->Ro_zp[freq] = rho_inv;
+				Ro_3c->rho_p[freq] = rho_form;
+				Ro_3c->rho_zp[freq] = rho_inv;
 				Ro_3c->R_zp[freq] = r_inv_cm;
 			}
 		}
@@ -185,7 +189,7 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(PHASE *Phase, Ro *Ro_3c, f
 	if (debug == true) {
 		for (int freq = 0; freq < config::kFreqCount; freq++) {
 			for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
-				Test << Ro_3c->Ro[freq][Tx] << " ";
+				Test << Ro_3c->rho_ph[freq][Tx] << " ";
 			}
 		}
 		Test << endl;
