@@ -179,6 +179,9 @@ int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win) {
 	return err::kOk;
 }
 
+// Подавление спиральной помехи: по скользящему окну длины win_f выполняется
+// гармоническая фильтрация (harmonics_clear), результат сглаживается скользящим
+// средним длины win_ma.
 extern "C" __declspec(dllexport) int anti_spiral(double *Sgn_in, double *Sgn_out, int length, int win_f, int win_ma) {
 	ClearSondeLastError();
 	if (!Sgn_in || !Sgn_out) {

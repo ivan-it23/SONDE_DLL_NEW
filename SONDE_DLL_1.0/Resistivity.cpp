@@ -149,7 +149,7 @@ extern "C" __declspec(dllexport) int rho_corr_ref_point(void *Metrology, RHO *rh
 	return err::kOk;
 }
 
-// Из УЭС получаем симметризованные сигналы (фаза + затухание в дБ).
+// Из УЭС восстанавливаются симметризованные сигналы (фаза + затухание в дБ).
 // Нужно для операции "КАРАНДАШ". Вне допустимого диапазона УЭС ставится
 // маркер недопустимого значения.
 extern "C" __declspec(dllexport) int signal_smt_from_ro(RHO *rho_calk, CAL_SIGNAL *cal_signal) {

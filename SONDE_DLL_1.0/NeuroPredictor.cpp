@@ -71,34 +71,74 @@ bool WeightsComplete(const std::string& weightsDir, std::string* missingFile) {
 	return true;
 }
 
+// Извлекает завершающий 3-значный код прибора из имени папки весов
+// (часть после последнего '-'). Возвращает -1, если формат не распознан.
+int ParseTrailingToolCode(const std::string& name) {
+	size_t dash = name.find_last_of('-');
+	if (dash == std::string::npos)
+		return -1;
+	const std::string tail = name.substr(dash + 1);
+	if (tail.size() != 3)
+		return -1;
+	for (size_t i = 0; i < tail.size(); ++i) {
+		if (tail[i] < '0' || tail[i] > '9')
+			return -1;
+	}
+	return (tail[0] - '0') * 100 + (tail[1] - '0') * 10 + (tail[2] - '0');
+}
+
+// Выбор каталога весов. Модификация прибора (3-я цифра кода) НЕ влияет на выбор:
+// обязателен матч по типу прибора и числу передатчиков (первые 2 цифры кода).
+// Точное совпадение по модификации предпочтительно; при его отсутствии берётся
+// любой полный каталог с тем же типом+числом передатчиков (fallback), чтобы
+// модификация не блокировала загрузку весов.
 std::string BuildWeightsDir(const std::string& baseDir, int toolType, std::string* searchDescription) {
-	std::ostringstream suffix;
-	suffix << '-' << std::setw(3) << std::setfill('0') << toolType;
+	const int prefix = toolType / 10;   // тип прибора + число передатчиков, напр. 24, 34
 	const std::string root = JoinPath(baseDir, config::kNeuroWeightsRootDir);
-	const std::string pattern = JoinPath(root, "*" + suffix.str());
-	if (searchDescription) *searchDescription = pattern;
+	if (searchDescription) {
+		std::ostringstream desc;
+		desc << JoinPath(root, "*-") << std::setw(2) << std::setfill('0') << prefix
+		     << "? (type+N_Tx " << prefix << ", modification ignored)";
+		*searchDescription = desc.str();
+	}
 	if (!DirectoryExists(root))
 		return std::string();
 
 	WIN32_FIND_DATAA entry = {};
-	HANDLE find = FindFirstFileA(pattern.c_str(), &entry);
+	HANDLE find = FindFirstFileA(JoinPath(root, "*").c_str(), &entry);
 	if (find == INVALID_HANDLE_VALUE)
 		return std::string();
 
+	std::string exactMatch;      // совпали все 3 цифры (предпочтительный вариант)
+	std::string prefixMatch;     // совпали только тип + число передатчиков (fallback)
 	std::string firstIncomplete;
 	do {
 		if ((entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
 			continue;
-		const std::string candidate = JoinPath(root, entry.cFileName);
+		const std::string name = entry.cFileName;
+		const int code = ParseTrailingToolCode(name);
+		if (code < 0 || code / 10 != prefix)
+			continue;            // тип прибора или число передатчиков не совпали
+		const std::string candidate = JoinPath(root, name);
 		std::string missing;
-		if (WeightsComplete(candidate, &missing)) {
-			FindClose(find);
-			return candidate;
+		if (!WeightsComplete(candidate, &missing)) {
+			if (firstIncomplete.empty())
+				firstIncomplete = candidate + " (missing " + missing + ")";
+			continue;
 		}
-		if (firstIncomplete.empty())
-			firstIncomplete = candidate + " (missing " + missing + ")";
+		if (code == toolType) {
+			exactMatch = candidate;   // точная модификация — приоритетный выбор, поиск прекращается
+			break;
+		}
+		if (prefixMatch.empty())
+			prefixMatch = candidate;  // первый полный каталог с тем же типом+N_Tx
 	} while (FindNextFileA(find, &entry));
 	FindClose(find);
+
+	if (!exactMatch.empty())
+		return exactMatch;
+	if (!prefixMatch.empty())
+		return prefixMatch;
 
 	if (searchDescription && !firstIncomplete.empty())
 		*searchDescription += "; incomplete candidate: " + firstIncomplete;
@@ -123,6 +163,8 @@ void ReleaseNeuro() {
 
 } // namespace
 
+// Загрузка NEURO_TEST.dll, привязка экспортов и создание предиктора из каталога
+// весов для типа прибора. Повторный вызов с тем же типом ничего не делает.
 int neuro_init(int toolType) {
 	if (hNeuroDll != NULL && hNeuroPredictor != NULL && activeToolType == toolType)
 		return err::kOk; // уже инициализирован
@@ -165,9 +207,9 @@ int neuro_init(int toolType) {
 	if (weightsDir.empty()) {
 		std::ostringstream message;
 		message << "Neural weights for signature " << toolType
-			<< " were not found. Expected a complete directory ending with '-"
-			<< std::setw(3) << std::setfill('0') << toolType
-			<< "' next to the SONDE DLL. Search: " << searchDescription << ".";
+			<< " were not found. Expected a complete directory whose trailing code matches the tool type and transmitter count (first two digits '"
+			<< (toolType / 10)
+			<< "', modification ignored) next to the SONDE DLL. Search: " << searchDescription << ".";
 		SetSondeLastError(message.str());
 		if (debug == true) {
 			Test << "sonde_set no neural weights for tool type " << toolType
@@ -209,10 +251,12 @@ int neuro_init(int toolType) {
 	return err::kOk;
 }
 
+// Готовность предиктора к предсказанию.
 bool neuro_available() {
 	return (hNeuroPredictor != NULL && fnGeoPredictor_Predict != NULL);
 }
 
+// Предсказание нейросети через GeoPredictor_Predict: массив входов -> выходов.
 int neuro_predict(const float* inputs, float* outputs) {
 	if (!inputs || !outputs) {
 		SetSondeLastError("Neural predictor input and output pointers must not be null.");

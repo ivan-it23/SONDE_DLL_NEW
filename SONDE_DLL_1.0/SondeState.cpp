@@ -17,10 +17,13 @@ namespace {
 std::recursive_mutex g_sondeStateMutex;
 }
 
+// Рекурсивный мьютекс для сериализации доступа к глобальному состоянию прибора.
 std::recursive_mutex& SondeStateMutex() {
 	return g_sondeStateMutex;
 }
 
+// Фиксация состояния прибора после успешной загрузки метрологии: геометрия зондов,
+// нули воздуха, идентификатор, число активных передатчиков и Rx_Position.
 void CommitSondeState(
 	const GP_METROLOGY& metrology,
 	const ID& tool,

@@ -105,7 +105,7 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(CAL_SIGNAL *cal_signal, RH
 		service->delta_percent_start[freq] = 0.0f;
 	}
 
-	// Current neural model supports LWD tools with 4 transmitters.
+
 	if (!IsNeuralLwd4Tx(id)) {
 		SetSondeLastError("Neural calculation is supported only for LWD 4Tx and Cartograph LWD-mode 4Tx tools.");
 		return err::kUnsupportedType;
@@ -119,6 +119,22 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(CAL_SIGNAL *cal_signal, RH
 				return err::kInvalidArgument;
 			}
 			Ro_3c->rho_ph[freq][Tx] = RO_ARG(param[freq][Tx], cal_signal->phase[freq][Tx]);
+		}
+	}
+
+	// Разброс фазовых УЭС по активным зондам (в %) — диагностика однородности среды.
+	// Вычисляется независимо от нейросетевого блока.
+	for (int freq = 0; freq < config::kFreqCount; freq++) {
+		float ro_sum = 0.0f;
+		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
+			ro_sum += Ro_3c->rho_ph[freq][Tx];
+		if (global_active_tx > 0 && ro_sum > 0.0f) {
+			const float ro_mean = ro_sum / static_cast<float>(global_active_tx);
+			float dev_sum = 0.0f;
+			for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
+				dev_sum += std::fabs(Ro_3c->rho_ph[freq][Tx] - ro_mean);
+			service->delta_percent_start[freq] =
+				100.0f * (dev_sum / static_cast<float>(global_active_tx)) / ro_mean;
 		}
 	}
 
@@ -187,17 +203,22 @@ extern "C" __declspec(dllexport) int calculate_Rho_AF(CAL_SIGNAL *cal_signal, RH
 	}
 
 	if (debug == true) {
-		for (int freq = 0; freq < config::kFreqCount; freq++) {
-			for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
-				Test << Ro_3c->rho_ph[freq][Tx] << " ";
-			}
-		}
-		Test << endl;
+		// Подписанный вывод величин, попадающих на последние два графика теста:
+		// кривые "Ro T1-T4 400 (RO_dFI)" / "Ro T1-T4 2000 (RO_dFI)" — это фазовое
+		// УЭС нейро-пути Ro_3c->rho_ph (метод RO_ARG), а Ro_p — нейросетевой пласт.
+		Test << "[RO_dFI] depth=" << cal_signal->Depth << " | Ro 400 (RO_dFI) T1-T4: ";
+		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
+			Test << Ro_3c->rho_ph[0][Tx] << " ";
+		Test << "| Ro 2000 (RO_dFI) T1-T4: ";
+		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
+			Test << Ro_3c->rho_ph[1][Tx] << " ";
+		Test << "| Ro_p(neuro)=" << Ro_3c->rho_p[0] << endl;
 	}
 
 	return err::kOk;
 }
 
+// Включает/выключает запись отладочного лога Test.txt.
 extern "C" __declspec(dllexport) void debug_mode(bool Debug) {
 	logger::set_enabled(Debug);
 }

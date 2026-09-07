@@ -82,6 +82,7 @@ int validate_metrology(const GP_METROLOGY& metrology, ToolCapabilities* outCapab
 	return err::kOk;
 }
 
+// Чтение и валидация файла метрологии (240 байт); извлечение сигнатуры прибора.
 int read_metrology_file(const char* path, GP_METROLOGY* outMetro, uint32_t* outSignature) {
 	if (!path || !outMetro || !outSignature) {
 		SetSondeLastError("Metrology path and output pointers must not be null.");
@@ -129,6 +130,7 @@ int read_metrology_file(const char* path, GP_METROLOGY* outMetro, uint32_t* outS
 	return err::kOk;
 }
 
+// Заполнение геометрии зондов и нулей воздуха (фазовых и амплитудных) из метрологии.
 void fill_sonde_params(const GP_METROLOGY& metrologyIn, SONDE_PARAM param[2][5], float Air[2][5], float Air_att_dB[2][5]) {
 	GP_METROLOGY metrology = metrologyIn;
 	const ToolCapabilities capabilities = GetToolCapabilities(metrology.signature);

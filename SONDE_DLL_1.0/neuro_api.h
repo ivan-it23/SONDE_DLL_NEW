@@ -1,5 +1,8 @@
-// neuro_api.h
-//     NEURO_TEST.dll
+// Типы указателей на экспортируемые функции NEURO_TEST.dll (нейросетевой предиктор):
+//   GeoPredictor_Create(weight_dir)             — создание предиктора из каталога весов;
+//   GeoPredictor_Predict(handle, in[8], out[3]) — предсказание: 8 входов -> 3 выхода;
+//   GeoPredictor_Destroy(handle)                — освобождение предиктора;
+//   GeoPredictor_GetLastError()                 — текст последней ошибки рантайма.
 #pragma once
 #include <windows.h>
 

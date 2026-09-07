@@ -6,10 +6,12 @@
 #include "SondeCore.h"
 #include "Constants.h"
 
+// Разбор сигнатуры прибора на поля ID. Младшие 6 разрядов (signature % 1000000)
+// кодируют прибор: type (3-значный код), type_ (семейство), N_Tx (число
+// передатчиков), mod (модификация), number. Старшие разряды (signature / 1000000)
+// задают размер структуры кадра (240/320); при нуле известным типам назначается 240.
 ID get_sonde_id(uint32_t signature) {
 	ID tool = {};
-	// Младшие 6 разрядов сигнатуры — идентификатор прибора, старшие разряды
-	// (signature / 1000000) — размер структуры данных прибора (версионирование).
 	tool.type = (signature % 1000000) / 1000;
 	tool.type_ = (signature % 1000000) / 100000;
 	tool.N_Tx = (signature % 100000) / 10000;
@@ -28,6 +30,8 @@ ID get_sonde_id(uint32_t signature) {
 	return tool;
 }
 
+// Возможности прибора по его ID: поддержка расчёта, допуск к нейросети
+// (N_Tx == 4 и семейство LWD/картограф) и число активных передатчиков.
 ToolCapabilities GetToolCapabilities(const ID& tool) {
 	ToolCapabilities result = {};
 	result.identity = tool;
@@ -54,6 +58,7 @@ bool IsNeuralLwd4Tx(const ID& tool) {
 	return GetToolCapabilities(tool).neural;
 }
 
+// Приведение фазы к диапазону (-PI, PI]. В текущем пути калибровки не вызывается.
 float NormalizePhase(float phase) {
 	while (phase > static_cast<float>(PI))
 		phase -= static_cast<float>(2.0 * PI);
@@ -62,6 +67,8 @@ float NormalizePhase(float phase) {
 	return phase;
 }
 
+// Знак ориентации фазы приёмника по номеру передатчика и Rx_Position.
+// В текущем пути калибровки не вызывается (get_cal_signal чередует знак напрямую).
 int RxPhaseOrientationSign(uint32_t transmitterIndex, uint32_t rxPosition) {
 	const bool oddTransmitterNumber = ((transmitterIndex + 1U) & 1U) != 0;
 	bool invert = !oddTransmitterNumber;
@@ -80,7 +87,7 @@ int EndsWith(const char *str, const char *suffix) {
 	return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
 }
 
-// переводит температуру в градусы цельсия
+// Перевод значения АЦП в температуру (градусы Цельсия).
 double temp_deg(int adc_value) {
 	double temp_deg;
 	double v_in = 3300 * adc_value / pow(2, 10);

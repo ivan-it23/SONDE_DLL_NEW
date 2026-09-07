@@ -30,6 +30,8 @@ bool has_extension(const char* path, const char* extension) {
 
 } // namespace
 
+// Разбор файла данных (.DEV/.bin): число кадров, размер служебного заголовка и
+// сигнатура прибора. Требует успешного sonde_set.
 extern "C" __declspec(dllexport) int get_data_file_info(
 	const char* dataPath,
 	uint32_t* frameCount,
