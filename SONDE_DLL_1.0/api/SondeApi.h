@@ -39,6 +39,7 @@ typedef struct SONDE_RHO {
 	float Depth;
 } SONDE_RHO;
 
+// Разброс УЭС по группе зондов, %.
 typedef struct SONDE_SERVICE {
 	float delta_percent_min[2];
 	float delta_percent_start[2];
@@ -108,21 +109,48 @@ enum SONDE_ERROR {
 	SONDE_NEURO_NOT_INITIALIZED = 301
 };
 
-// Поддерживаются: автономный 4/5Tx, LWD 3/4Tx, картограф LWD 4Tx и временно 351.
+// Поддерживаются: автономный 4/5Tx, LWD 3/4Tx, картограф LWD 4Tx и 351.
 // Для нейросетевых LWD/картограф 4Tx требуется каталог весов с суффиксом -XYZ,
 // где XYZ — три цифры типа прибора из сигнатуры метрологии.
-SONDE_EXTERN_C SONDE_API int sonde_set(void* metrology_path, const char* reserved);
+
+// Загружает файл метрологии и для нейросетевых типов инициализирует предиктор.
+SONDE_EXTERN_C SONDE_API int sonde_set(void* metrology_path);
+
+// Возвращает число кадров, размер служебной части записи и сигнатуру файла данных.
 SONDE_EXTERN_C SONDE_API int get_data_file_info(const char* data_path, uint32_t* frame_count, int* frame_header_size, uint32_t* data_signature);
+
+// Возвращает готовые с контроллера симметризованные сигналы и УЭС обоих каналов.
 SONDE_EXTERN_C SONDE_API int get_express_data(void* data, CAL_SIGNAL* cal_signal, RHO* rho, int shift);
+
+// Возвращает калиброванные на воздух фазы и амплитудные затухания в дБ.
 SONDE_EXTERN_C SONDE_API int get_cal_signal(void* data, CAL_SIGNAL* cal_signal, int shift);
+
+// Возвращает байт работоспособности передатчиков.
 SONDE_EXTERN_C SONDE_API int get_condition(void* data, uint32_t* condition, int shift);
+
+// Симметризует фазовый и амплитудный каналы по байту работоспособности.
 SONDE_EXTERN_C SONDE_API int simmetry(CAL_SIGNAL* cal_signal_in, CAL_SIGNAL* cal_signal_smt, uint32_t condition);
+
+// УЭС по фазе и по затуханию, без учёта скважины и зоны проникновения.
 SONDE_EXTERN_C SONDE_API int calculate_rho(CAL_SIGNAL* cal_signal, RHO* rho);
-SONDE_EXTERN_C SONDE_API int calculate_Rho_AF(CAL_SIGNAL* cal_signal, RHO* rho, float ro_bh, int borehole_diameter_mm, int pz_400, int pz_2000, SERVICE* service);
+
+// Истинное УЭС пласта и параметры зоны проникновения нейросетью.
+// Принимает симметризованный сигнал; заполняет rho_ph, rho_p, rho_zp, R_zp.
+SONDE_EXTERN_C SONDE_API int calculate_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* rho, SERVICE* service);
+
+// Корректирует УЭС искомой точки по опорной точке. Работает без sonde_set.
 SONDE_EXTERN_C SONDE_API int rho_corr_ref_point(void* metrology_path, RHO* calculated_reference, RHO* required_reference, RHO* calculated, RHO* required);
+
+// Восстанавливает из УЭС симметризованные фазу и затухание в дБ.
 SONDE_EXTERN_C SONDE_API int signal_smt_from_ro(RHO* calculated_rho, CAL_SIGNAL* cal_signal);
+
+// Модельные симметризованные фазы для параметров зоны проникновения.
 SONDE_EXTERN_C SONDE_API int ph_smt_zp(RHO* rho, CAL_SIGNAL* cal_signal);
+
+// Подавление спиральной помехи.
 SONDE_EXTERN_C SONDE_API int anti_spiral(double* input, double* output, int length, int fourier_window, int moving_average_window);
+
+// Включает и выключает запись отладочного лога Test.txt.
 SONDE_EXTERN_C SONDE_API void debug_mode(SONDE_BOOL enabled);
 
 // Указатель действует до следующего вызова DLL в том же потоке; строку не освобождать.

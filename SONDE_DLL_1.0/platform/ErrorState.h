@@ -8,5 +8,3 @@
 void ClearSondeLastError();
 void SetSondeLastError(const std::string& message);
 const char* GetSondeLastError();
-
-extern "C" __declspec(dllexport) const char* sonde_get_last_error();

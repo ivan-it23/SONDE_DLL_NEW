@@ -1,38 +1,23 @@
 #pragma once
 // Types.h
-// Доменные типы данных проекта SONDE_DLL: бинарные структуры приборов и
-// метрологии и рабочие структуры расчёта.
-// Раскладка структур должна оставаться неизменной (#pragma pack(push,1)),
-// так как структуры читаются/пишутся побайтово в бинарные файлы.
+// Бинарные структуры приборов и метрологии, а также рабочие структуры расчёта.
+// Раскладка структур неизменна (#pragma pack(push,1)): они читаются и пишутся
+// побайтово в бинарные файлы.
 
 #include <complex>
-#include <vector>
 #include <stdint.h>
 #include <cstddef>
 
-// Исходные макро-определения целочисленных типов сохранены без изменений:
-// от них зависит раскладка бинарных структур приборов.
+// Целочисленные типы заданы макросами: от них зависит раскладка бинарных структур.
 #define int16_t short
-#define int32_t long
 #define uint32_t unsigned long
-#define Complex complex<long int>
 #define uint16_t unsigned short
-#define float16_t unsigned short
 
 using namespace std;
 
-// --------------------------------------------------------------------------
-// Перечисления индексации частот и зондов.
-// --------------------------------------------------------------------------
 enum FREQ {
 	_400_kGz,
 	_2000_kGz,
-};
-
-enum T_CAL {
-	T1_400, T2_400, T3_400, T4_400,
-	T1_2000, T2_2000, T3_2000, T4_2000,
-	T5_400, T5_2000,
 };
 
 enum T_SMT {
@@ -40,29 +25,12 @@ enum T_SMT {
 };
 
 #pragma pack(push, 1)
-struct Q_B {
-	float QL1;
-	float QL2;
-};
 
+// Геометрия и рабочая частота одного зонда.
 struct SONDE_PARAM {
 	float L1;
 	float L2;
 	float f;
-	float M;
-	float log_M;
-	float D_sonde_m;
-};
-
-struct D_Border {
-	double D_abs;
-	double D_arg;
-};
-
-struct IQA {
-	double I;
-	double Q;
-	double Angle;
 };
 
 // Калиброванный сигнал зонда: фазовый и амплитудный (затухание в дБ) каналы.
@@ -76,27 +44,13 @@ struct CAL_SIGNAL {
 struct RHO {
 	float rho_ph[2][5];  // фазовое УЭС [400, 2000][T1-T5]
 	float rho_att[2][5]; // амплитудное УЭС [400, 2000][T1-T5]
-	float rho_p[2];      // УЭС пласта (зона проникновения)
+	float rho_p[2];      // УЭС пласта
 	float R_zp[2];       // радиус зоны проникновения, см
 	float rho_zp[2];     // УЭС зоны проникновения
 	float Depth;
 };
 
-struct ZP {
-	float R_zp;
-	float Ro_zp;
-	float Ro_p;
-	float tf;
-};
-
-//adjacent stratum AS
-struct AS {
-	float Ro_sonde;
-	float Ro_up;
-	float D;
-	float tf;
-};
-
+// Разброс УЭС по группе зондов, %.
 struct SERVICE {
 	float delta_percent_min[2];
 	float delta_percent_start[2];
@@ -107,13 +61,13 @@ struct GP_DATA {
 	uint32_t condition;
 	uint32_t frame;
 	float temperature;
-	float rho_smt[2][5];      // УЭС, рассчитанные на контроллере [400, 2000][T1-T5]
+	float rho_smt[2][5];      // фазовые УЭС, рассчитанные на контроллере [400, 2000][T1-T5]
 	float phase_smt[2][5];    // симметризованные фазы [400, 2000][T1-T5]
 	float AM_RX_1[2][5];      // амплитуды на первом приемнике [400, 2000][T1-T5]
 	float ZERO_AM_RX_1[2];    // амплитуды на первом приемнике [400, 2000] при молчащих передатчиках
-	float AM_RX_2[2][5];      // амплитуды на втором приемнике [400, 2000][T1 - T5]
+	float AM_RX_2[2][5];      // амплитуды на втором приемнике [400, 2000][T1-T5]
 	float ZERO_AM_RX_2[2];    // амплитуды на втором приемнике [400, 2000] при молчащих передатчиках
-	float DELTA_PH[2][5];     // сырая разница фаз [400, 2000][T1 - T5]
+	float DELTA_PH[2][5];     // сырая разница фаз [400, 2000][T1-T5]
 	float ZERO_dPH[2];        // разница фаз молчащих передатчиков
 	float rho_att_smt[2][5];  // амплитудные УЭС, рассчитанные на контроллере [400, 2000][T1-T5]
 	float att_smt_dB[2][5];   // симметризованные децибельные затухания [400, 2000][T1-T5]
@@ -125,21 +79,18 @@ struct GP_METROLOGY {
 	uint16_t L1[5];
 	uint16_t L2[5];
 	uint16_t F[2];
-	int16_t Air_ph[2][5];     // фазовые нули воздуха (было Air_zz)
-	int16_t min_amp[2][5];    // минимальные амплитуды (было Air_zz_amt)
+	int16_t Air_ph[2][5];     // фазовые нули воздуха, милиградусы
+	int16_t min_amp[2][5];    // минимальные амплитуды
 	uint32_t D_sonde_mm;
 	uint32_t work_type;
-	uint32_t Rx_Position;     // 0: R1->T1, 1: R1->T2
+	uint32_t Rx_Position;     // 0-DEFAULT R1->T1, 1-R1->T2
 	float Air_att_dB[2][5];   // амплитудные нули воздуха, дБ
-	uint16_t service[58];     // резерв до 240 байт
+	uint16_t service[58];     // на будущее до 240 байт
 };
 
-struct INF_CYL {
-	complex <float> sonde[2][5];
-};
-
+// Идентификатор прибора, декодированный из сигнатуры.
 struct ID {
-	uint32_t struct_size; // размер структуры данных прибора из старших разрядов сигнатуры
+	uint32_t struct_size; // размер структуры данных прибора
 	uint32_t type_;
 	uint32_t N_Tx;
 	uint32_t mod;

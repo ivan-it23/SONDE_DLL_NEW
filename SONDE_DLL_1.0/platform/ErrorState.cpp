@@ -16,8 +16,3 @@ void SetSondeLastError(const std::string& message) {
 const char* GetSondeLastError() {
 	return g_lastError.c_str();
 }
-
-// Возвращает текст последней ошибки текущего потока (thread-local).
-extern "C" __declspec(dllexport) const char* sonde_get_last_error() {
-	return GetSondeLastError();
-}

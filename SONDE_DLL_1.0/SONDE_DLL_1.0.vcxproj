@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -85,6 +85,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)api;$(ProjectDir)core;$(ProjectDir)platform;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -160,37 +165,38 @@
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="Constants.h" />
-    <ClInclude Include="Types.h" />
-    <ClInclude Include="variable.h" />
-    <ClInclude Include="Logger.h" />
-    <ClInclude Include="SondeState.h" />
-    <ClInclude Include="SondeCore.h" />
-    <ClInclude Include="MetrologyLoader.h" />
-    <ClInclude Include="DataFile.h" />
-    <ClInclude Include="ErrorState.h" />
-    <ClInclude Include="SondeApi.h" />
-    <ClInclude Include="NeuroPredictor.h" />
-    <ClInclude Include="neuro_api.h" />
-    <ClInclude Include="Resistivity.h" />
-    <ClInclude Include="PhaseProcessor.h" />
-    <ClInclude Include="AntiSpiral.h" />
-    <ClInclude Include="InvasionForward.h" />
+    <ClInclude Include="api\SondeApi.h" />
+    <ClInclude Include="core\Types.h" />
+    <ClInclude Include="core\Constants.h" />
+    <ClInclude Include="core\SondeIdentity.h" />
+    <ClInclude Include="core\SondeState.h" />
+    <ClInclude Include="core\Metrology.h" />
+    <ClInclude Include="core\SignalCalibration.h" />
+    <ClInclude Include="core\Resistivity.h" />
+    <ClInclude Include="core\NeuroResistivity.h" />
+    <ClInclude Include="core\InvasionForward.h" />
+    <ClInclude Include="core\DataFile.h" />
+    <ClInclude Include="core\AntiSpiral.h" />
+    <ClInclude Include="platform\Logger.h" />
+    <ClInclude Include="platform\ErrorState.h" />
+    <ClInclude Include="platform\NeuroPredictor.h" />
+    <ClInclude Include="platform\neuro_api.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="SONDE_DLL_1.0.cpp" />
-    <ClCompile Include="Logger.cpp" />
-    <ClCompile Include="SondeState.cpp" />
-    <ClCompile Include="SondeCore.cpp" />
-    <ClCompile Include="MetrologyLoader.cpp" />
-    <ClCompile Include="DataFile.cpp" />
-    <ClCompile Include="ErrorState.cpp" />
-    <ClCompile Include="NeuroPredictor.cpp" />
-    <ClCompile Include="Resistivity.cpp" />
-    <ClCompile Include="PhaseProcessor.cpp" />
-    <ClCompile Include="AntiSpiral.cpp" />
-    <ClCompile Include="InvasionForward.cpp" />
+    <ClCompile Include="api\SondeApi.cpp" />
+    <ClCompile Include="core\SondeIdentity.cpp" />
+    <ClCompile Include="core\SondeState.cpp" />
+    <ClCompile Include="core\Metrology.cpp" />
+    <ClCompile Include="core\SignalCalibration.cpp" />
+    <ClCompile Include="core\Resistivity.cpp" />
+    <ClCompile Include="core\NeuroResistivity.cpp" />
+    <ClCompile Include="core\InvasionForward.cpp" />
+    <ClCompile Include="core\DataFile.cpp" />
+    <ClCompile Include="core\AntiSpiral.cpp" />
+    <ClCompile Include="platform\dllmain.cpp" />
+    <ClCompile Include="platform\Logger.cpp" />
+    <ClCompile Include="platform\ErrorState.cpp" />
+    <ClCompile Include="platform\NeuroPredictor.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

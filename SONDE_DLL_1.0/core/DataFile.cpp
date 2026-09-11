@@ -8,7 +8,7 @@
 #include "Constants.h"
 #include "Logger.h"
 #include "SondeState.h"
-#include "SondeCore.h"
+#include "SondeIdentity.h"
 #include "ErrorState.h"
 
 #include <cmath>
@@ -30,15 +30,11 @@ bool has_extension(const char* path, const char* extension) {
 
 } // namespace
 
-// Разбор файла данных (.DEV/.bin): число кадров, размер служебного заголовка и
-// сигнатура прибора. Требует успешного sonde_set.
-extern "C" __declspec(dllexport) int get_data_file_info(
+int scan_data_file(
 	const char* dataPath,
 	uint32_t* frameCount,
 	int* frameHeaderSize,
 	uint32_t* dataSignature) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
 	if (!dataPath || !frameCount || !frameHeaderSize || !dataSignature) {
 		SetSondeLastError("get_data_file_info requires a path and three non-null output pointers.");
 		return err::kInvalidArgument;

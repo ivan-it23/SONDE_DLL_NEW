@@ -6,8 +6,8 @@
 #include "Resistivity.h"
 #include "Constants.h"
 #include "SondeState.h"
-#include "SondeCore.h"
-#include "MetrologyLoader.h"
+#include "SondeIdentity.h"
+#include "Metrology.h"
 #include "Logger.h"
 #include "ErrorState.h"
 
@@ -17,8 +17,6 @@ using namespace std;
 // Низкоуровневые преобразования сигнал/УЭС.
 // --------------------------------------------------------------------------
 
-// Комплексный сигнал зонда (отношение сигналов на приёмниках) для бесконечной
-// однородной среды. Коэффициент 0.0000078957 = 2*PI*mu0*1e6/2 в единицах модели.
 complex<float> SIGNAL(SONDE_PARAM param, float ro) {
 	const float L1 = param.L1;
 	const float L2 = param.L2;
@@ -29,13 +27,13 @@ complex<float> SIGNAL(SONDE_PARAM param, float ro) {
 	return exp(ik * (L2 - L1)) * ((1.0f - ik * L2) / (1.0f - ik * L1));
 }
 
-// УЭС от фазового сдвига по золотому сечению.
+// УЭС от фазы по золотому сечению.
 float RO_ARG(SONDE_PARAM param, double dfi) {
 	float ro_0 = config::kRoSolverMin;
 	float ro_max = config::kRoSolverMax;
 	float delta = 0.0f;
-	// Верхний предел итераций — защита от зависания при вырожденной геометрии;
-	// на реальных данных сходимость наступает за десятки шагов.
+	// Число итераций ограничено сверху: при вырожденной геометрии зонда критерий
+	// совпадения фазы недостижим.
 	for (int iteration = 0; iteration < 100000; ++iteration) {
 		float X1 = ro_0 + config::kGoldenFactor * (ro_max - ro_0);
 		float X2 = ro_max - config::kGoldenFactor * (ro_max - ro_0);
@@ -56,7 +54,7 @@ float RO_ATT(SONDE_PARAM param, double att_dB) {
 	float ro_0 = config::kRoSolverMin;
 	float ro_max = config::kRoAttSolverMax;
 	float delta = 0.0f;
-	// Целевое затухание переводится из децибел обратно в разы.
+	// симметризованное затухание переводится обратно из децибелл в разы
 	const float target = powf(10.0f, static_cast<float>(att_dB) / 20.0f);
 	for (int iteration = 0; iteration < 100000; ++iteration) {
 		float X1 = ro_0 + config::kGoldenFactor * (ro_max - ro_0);
@@ -74,14 +72,10 @@ float RO_ATT(SONDE_PARAM param, double att_dB) {
 }
 
 // --------------------------------------------------------------------------
-// Экспортируемые функции расчёта и коррекции УЭС.
+// Расчёт и коррекция УЭС.
 // --------------------------------------------------------------------------
 
-// УЭС по фазе и по затуханию методом золотого сечения, без учёта скважины и
-// зоны проникновения.
-extern "C" __declspec(dllexport) int calculate_rho(CAL_SIGNAL *cal_signal, RHO *rho) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
+int compute_rho(CAL_SIGNAL* cal_signal, RHO* rho) {
 	if (!cal_signal || !rho) {
 		SetSondeLastError("calculate_rho requires non-null CAL_SIGNAL input and RHO output.");
 		return err::kInvalidArgument;
@@ -105,13 +99,14 @@ extern "C" __declspec(dllexport) int calculate_rho(CAL_SIGNAL *cal_signal, RHO *
 	return err::kOk;
 }
 
-// По вычисленному и желаемому УЭС в опорной точке корректирует УЭС в искомой
-// точке (посадка на опорную точку) по обоим каналам. Работает без sonde_set —
-// читает собственный файл метрологии.
-extern "C" __declspec(dllexport) int rho_corr_ref_point(void *Metrology, RHO *rho_calk_ref_point, RHO *rho_need_ref_point, RHO *rho_calk, RHO *rho_required) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
-	if (!Metrology || !rho_calk_ref_point || !rho_need_ref_point || !rho_calk || !rho_required) {
+int correct_rho_to_ref_point(
+	const char* metrologyPath,
+	RHO* rho_calk_ref_point,
+	RHO* rho_need_ref_point,
+	RHO* rho_calk_desired_point,
+	RHO* rho_required_desired_point) {
+	if (!metrologyPath || !rho_calk_ref_point || !rho_need_ref_point ||
+		!rho_calk_desired_point || !rho_required_desired_point) {
 		SetSondeLastError("rho_corr_ref_point requires a metrology path and four non-null RHO pointers.");
 		return err::kInvalidArgument;
 	}
@@ -121,7 +116,7 @@ extern "C" __declspec(dllexport) int rho_corr_ref_point(void *Metrology, RHO *rh
 
 	GP_METROLOGY metrology = {};
 	uint32_t signature = 0;
-	int read_result = read_metrology_file((const char*)Metrology, &metrology, &signature);
+	int read_result = read_metrology_file(metrologyPath, &metrology, &signature);
 	if (read_result != err::kOk)
 		return read_result;
 
@@ -129,32 +124,30 @@ extern "C" __declspec(dllexport) int rho_corr_ref_point(void *Metrology, RHO *rh
 
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (int Tx = 0; Tx < config::kMaxTx; Tx++) {
-			// Фазовый и амплитудный сдвиги в опорной точке.
+			// фазовый сдвиг и затухание в дБ для вычисленного в опорной точке УЭС
 			float dfi_calk_ref = arg(SIGNAL(localParam[freq][Tx], rho_calk_ref_point->rho_ph[freq][Tx]));
 			float att_calk_ref = 20.0f * log10(abs(SIGNAL(localParam[freq][Tx], rho_calk_ref_point->rho_att[freq][Tx])));
+			// фазовый сдвиг и затухание в дБ для требуемого в опорной точке УЭС
 			float dfi_need_ref = arg(SIGNAL(localParam[freq][Tx], rho_need_ref_point->rho_ph[freq][Tx]));
 			float att_need_ref = 20.0f * log10(abs(SIGNAL(localParam[freq][Tx], rho_need_ref_point->rho_att[freq][Tx])));
-			// Сдвиги в искомой точке.
-			float dfi_calk = arg(SIGNAL(localParam[freq][Tx], rho_calk->rho_ph[freq][Tx]));
-			float att_calk = 20.0f * log10(abs(SIGNAL(localParam[freq][Tx], rho_calk->rho_att[freq][Tx])));
-			// Смещение опорной точки и скорректированные сигналы искомой точки.
+			// фазовый сдвиг и затухание в дБ для вычисленного в искомой точке УЭС
+			float dfi_calk = arg(SIGNAL(localParam[freq][Tx], rho_calk_desired_point->rho_ph[freq][Tx]));
+			float att_calk = 20.0f * log10(abs(SIGNAL(localParam[freq][Tx], rho_calk_desired_point->rho_att[freq][Tx])));
+			// смещение между вычисленным и требуемым сигналами в опорной точке
 			float phase_shift = dfi_calk_ref - dfi_need_ref;
 			float att_shift = att_calk_ref - att_need_ref;
+			// скорректированный сигнал искомой точки = первоначальный - смещение в опорной точке
 			float dfi_required = dfi_calk - phase_shift;
 			float att_required = att_calk - att_shift;
-			rho_required->rho_ph[freq][Tx] = RO_ARG(localParam[freq][Tx], dfi_required);
-			rho_required->rho_att[freq][Tx] = RO_ATT(localParam[freq][Tx], att_required);
+			// скорректированное УЭС искомой точки от скорректированного сигнала
+			rho_required_desired_point->rho_ph[freq][Tx] = RO_ARG(localParam[freq][Tx], dfi_required);
+			rho_required_desired_point->rho_att[freq][Tx] = RO_ATT(localParam[freq][Tx], att_required);
 		}
 	}
 	return err::kOk;
 }
 
-// Из УЭС восстанавливаются симметризованные сигналы (фаза + затухание в дБ).
-// Нужно для операции "КАРАНДАШ". Вне допустимого диапазона УЭС ставится
-// маркер недопустимого значения.
-extern "C" __declspec(dllexport) int signal_smt_from_ro(RHO *rho_calk, CAL_SIGNAL *cal_signal) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
+int compute_signal_from_rho(RHO* rho_calk, CAL_SIGNAL* cal_signal) {
 	if (!rho_calk || !cal_signal) {
 		SetSondeLastError("signal_smt_from_ro requires non-null RHO input and CAL_SIGNAL output.");
 		return err::kInvalidArgument;
@@ -171,6 +164,7 @@ extern "C" __declspec(dllexport) int signal_smt_from_ro(RHO *rho_calk, CAL_SIGNA
 				cal_signal->phase[freq][Tx] = config::kInvalidPhase;
 
 			if (rho_calk->rho_att[freq][Tx] > 0.0f && rho_calk->rho_att[freq][Tx] < 1200.0f)
+				// затухание переводится в децибеллы
 				cal_signal->att_dB[freq][Tx] = 20.0f * log10(abs(SIGNAL(param[freq][Tx], rho_calk->rho_att[freq][Tx])));
 			else
 				cal_signal->att_dB[freq][Tx] = config::kInvalidPhase;

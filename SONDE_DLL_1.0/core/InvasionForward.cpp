@@ -7,16 +7,14 @@
 #include "Constants.h"
 #include "SondeState.h"
 #include "Logger.h"
-#include "SondeCore.h"
+#include "SondeIdentity.h"
 #include "ErrorState.h"
 
 using namespace std;
 
 // --------------------------------------------------------------------------
 // Функции Бесселя мнимого аргумента I0, I1, K0, K1.
-// Ряды по факториалам и гамма-функциям требуют предрасчитанных таблиц
-// коэффициентов, которые формируются один раз при первом обращении
-// (ленивая инициализация).
+// Коэффициенты рядов рассчитываются один раз при первом обращении.
 // --------------------------------------------------------------------------
 
 namespace {
@@ -29,7 +27,6 @@ const int kInfI = 50;       // ряд для I0, I1
 const int kInfKSmall = 50;  // ряд для K0, K1 при |z| < 10
 const int kInfKBig = 14;    // асимптотический ряд для K0, K1 при |z| >= 10
 
-// Предрасчитанные таблицы коэффициентов рядов.
 struct BesselTables {
 	double FxF[101];      // произведение квадратов факториалов
 	double FxG[101];      // произведение факториала на гамма-функцию
@@ -49,7 +46,7 @@ double factorial(int n) {
 	return result;
 }
 
-// Гамма-функция в полуцелых точках: gamma(n + 1/2) с обработкой n < 0.
+// Гамма-функция в полуцелых точках: gamma(n + 1/2), с обработкой n < 0.
 double gamma05(int n) {
 	if (n < 0) return -2.0 * sqrt(PI);
 	double g = sqrt(PI);
@@ -169,7 +166,7 @@ complex<double> K1(complex<double> z) {
 } // namespace
 
 // --------------------------------------------------------------------------
-// Прямая задача: фаза зонда в среде с цилиндрической зоной проникновения.
+// Прямая задача для двухслойной цилиндрической модели.
 // --------------------------------------------------------------------------
 
 float Vzz_inf_cyl(SONDE_PARAM param, float Ro_p, float Ro_zp, float rzp) {
@@ -178,17 +175,15 @@ float Vzz_inf_cyl(SONDE_PARAM param, float Ro_p, float Ro_zp, float rzp) {
 	const double r0 = static_cast<double>(rzp);
 	const double W = 2.0 * PI * static_cast<double>(param.f);
 
-	// Шаг интегрирования по kz. Первый участок (0..0.1) — равномерный, далее шаг
-	// растёт геометрически; знаменатель зависит от радиуса зоны и длины зонда.
 	const double dkz1 = 1e-4;
-	double dkz2 = 1.0442737824; // 2^(1/16) по умолчанию (rzp > 0.4 м)
-	if (rzp <= 0.1 && param.L1 > 0.8)  dkz2 = 1.002711275;     // 2^(1/256)
-	else if (rzp <= 0.1 && param.L1 <= 0.8) dkz2 = 1.005429901128; // 2^(1/128)
-	else if (rzp > 0.1 && rzp <= 0.2)  dkz2 = 1.010889286;     // 2^(1/64)
-	else if (rzp > 0.2 && rzp <= 0.4)  dkz2 = 1.0218971486;    // 2^(1/32)
+	double dkz2 = 1.0442737824; // 2^1/16
+	if (rzp <= 0.1 && param.L1 > 0.8)  dkz2 = 1.002711275;         // 2^1/256
+	else if (rzp <= 0.1 && param.L1 <= 0.8) dkz2 = 1.005429901128; // 2^1/128
+	else if (rzp > 0.1 && rzp <= 0.2)  dkz2 = 1.010889286;         // 2^1/64
+	else if (rzp > 0.2 && rzp <= 0.4)  dkz2 = 1.0218971486;        // 2^1/32
 
-	const double sigma1 = 1.0 / static_cast<double>(Ro_zp); // проводимость зоны
-	const double sigma2 = 1.0 / static_cast<double>(Ro_p);  // проводимость пласта
+	const double sigma1 = 1.0 / static_cast<double>(Ro_zp);
+	const double sigma2 = 1.0 / static_cast<double>(Ro_p);
 	const double eps1 = 108.5 * pow(sigma1, 0.35) + 5.0;
 	const double eps2 = 108.5 * pow(sigma2, 0.35) + 5.0;
 
@@ -244,18 +239,7 @@ float Vzz_inf_cyl(SONDE_PARAM param, float Ro_p, float Ro_zp, float rzp) {
 	return static_cast<float>(arg(integral_L2 / integral_L1));
 }
 
-// --------------------------------------------------------------------------
-// Экспортируемая функция: симметризованные фазы с учётом зоны проникновения.
-// --------------------------------------------------------------------------
-
-// По параметрам зоны проникновения (Ro_p, Ro_zp, R_zp), полученным нейросетью,
-// вычисляет модельные симметризованные фазы для каждого зонда [частота][Tx].
-// Параметры зоны проникновения едины для обеих частот (свойства среды),
-// различие фаз обеспечивается геометрией/частотой зонда. R_zp поступает в
-// сантиметрах и переводится в метры для прямой задачи.
-extern "C" __declspec(dllexport) int ph_smt_zp(RHO *Ro_src, CAL_SIGNAL *Phase) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
+int compute_zp_phases(RHO* Ro_src, CAL_SIGNAL* Phase) {
 	if (Ro_src == nullptr || Phase == nullptr) {
 		SetSondeLastError("ph_smt_zp requires non-null RHO input and CAL_SIGNAL output.");
 		return err::kInvalidArgument;
@@ -282,11 +266,8 @@ extern "C" __declspec(dllexport) int ph_smt_zp(RHO *Ro_src, CAL_SIGNAL *Phase) {
 		for (int Tx = 0; Tx < config::kMaxTx; Tx++)
 			Phase->phase[freq][Tx] = 0.0f;
 		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
-			// Слот зонда считается рабочим только при ненулевой геометрии
-			// (исключает несуществующий T5 у 4-передатчиковых приборов) и
-			// физически допустимых параметрах зоны проникновения.
-			const bool valid_sonde = param[freq][Tx].L1 > 0.0f && param[freq][Tx].L2 > 0.0f;
-			if (valid_sonde && Ro_p > 0.0f && Ro_zp > 0.0f && R_zp_m > 0.0f) {
+			// зонд считается рабочим только при ненулевой геометрии
+			if (param[freq][Tx].L1 > 0.0f && param[freq][Tx].L2 > 0.0f) {
 				Phase->phase[freq][Tx] = Vzz_inf_cyl(param[freq][Tx], Ro_p, Ro_zp, R_zp_m);
 			}
 			else {

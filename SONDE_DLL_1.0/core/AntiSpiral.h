@@ -14,3 +14,7 @@ int SLAU(double matrica_a[5][5], int n, double massiv_b[5], double x[5]);
 
 // Гармоническая очистка окна сигнала. Возвращает 0 при успехе.
 int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win);
+
+// По скользящему окну длины win_f выполняется гармоническая очистка, результат
+// сглаживается скользящим средним длины win_ma.
+int suppress_spiral(double *Sgn_in, double *Sgn_out, int length, int win_f, int win_ma);

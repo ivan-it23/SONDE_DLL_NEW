@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "PhaseProcessor.h"
+#include "SignalCalibration.h"
 #include "SondeState.h"
-#include "SondeCore.h"
+#include "SondeIdentity.h"
 #include "Logger.h"
 #include "Constants.h"
 #include "ErrorState.h"
@@ -16,9 +16,8 @@ using namespace std;
 // Матрицы коэффициентов симметризации.
 // --------------------------------------------------------------------------
 
-// Построение матрицы симметризации K[5][5] по числу передатчиков N_Tx и байту
-// работоспособности condition (младший байт GP_DATA.condition).
 void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
+	//00054321
 	if (N_Tx == 5) {
 		if (condition == 0b00011111 || condition == 0b11111111) {// работают все 5 передатчиков
 			K[T1][T1] = +0.75f;  K[T1][T2] = +0.50f; K[T1][T3] = -0.25f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
@@ -62,14 +61,16 @@ void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
 			K[T4][T1] = +0.00f;  K[T4][T2] = -0.25f; K[T4][T3] = +0.50f; K[T4][T4] = +0.75f; K[T4][T5] = +0.00f;
 			K[T5][T1] = +0.00f;  K[T5][T2] = -0.75f; K[T5][T3] = +0.50f; K[T5][T4] = +1.25f; K[T5][T5] = +0.00f;
 		}
-		else if (condition == 0b00000000) {// несимметризованные значения для всех передатчиков
+		else if (condition == 0b00000000) {// выводим несимметризованные значения для всех передатчиков
 			K[T1][T1] = +1.00f; K[T1][T2] = +0.00f; K[T1][T3] = +0.00f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.00f; K[T2][T2] = +1.00f; K[T2][T3] = +0.00f; K[T2][T4] = +0.00f; K[T2][T5] = +0.00f;
 			K[T3][T1] = +0.00f; K[T3][T2] = +0.00f; K[T3][T3] = +1.00f; K[T3][T4] = +0.00f; K[T3][T5] = +0.00f;
 			K[T4][T1] = +0.00f; K[T4][T2] = +0.00f; K[T4][T3] = +0.00f; K[T4][T4] = +1.00f; K[T4][T5] = +0.00f;
 			K[T5][T1] = +0.00f; K[T5][T2] = +0.00f; K[T5][T3] = +0.00f; K[T5][T4] = +0.00f; K[T5][T5] = +1.00f;
 		}
-		else {// работает меньше четырех передатчиков
+		else {
+			// работает меньше четырех передатчиков
+			// находим рабочие передатчики и для них выводим несимметризованные значения, для нерабочих фаза равна 0
 			bool k1 = (condition >> 0) & 1u;
 			bool k2 = (condition >> 1) & 1u;
 			bool k3 = (condition >> 2) & 1u;
@@ -120,14 +121,16 @@ void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
 			K[T4][T1] = -0.75f; K[T4][T2] = +0.50f; K[T4][T3] = +1.25f; K[T4][T4] = +0.00f; K[T4][T5] = +0.00f;
 			K[T5][T1] = +0.00f; K[T5][T2] = +0.00f; K[T5][T3] = +0.00f; K[T5][T4] = +0.00f; K[T5][T5] = +0.00f;
 		}
-		else if (condition == 0b00000000) {// несимметризованные значения для всех передатчиков
+		else if (condition == 0b00000000) {// выводим несимметризованные значения для всех передатчиков
 			K[T1][T1] = +1.00f; K[T1][T2] = +0.00f; K[T1][T3] = +0.00f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.00f; K[T2][T2] = +1.00f; K[T2][T3] = +0.00f; K[T2][T4] = +0.00f; K[T2][T5] = +0.00f;
 			K[T3][T1] = +0.00f; K[T3][T2] = +0.00f; K[T3][T3] = +1.00f; K[T3][T4] = +0.00f; K[T3][T5] = +0.00f;
 			K[T4][T1] = +0.00f; K[T4][T2] = +0.00f; K[T4][T3] = +0.00f; K[T4][T4] = +1.00f; K[T4][T5] = +0.00f;
 			K[T5][T1] = +0.00f; K[T5][T2] = +0.00f; K[T5][T3] = +0.00f; K[T5][T4] = +0.00f; K[T5][T5] = +1.00f;
 		}
-		else {// работает меньше трех передатчиков
+		else {
+			// работает меньше трех передатчиков
+			// находим рабочие передатчики и для них выводим несимметризованные значения, для нерабочих фаза равна 0
 			bool k1 = (condition >> 0) & 1u;
 			bool k2 = (condition >> 1) & 1u;
 			bool k3 = (condition >> 2) & 1u;
@@ -142,50 +145,33 @@ void formula_simmetry(float K[5][5], uint8_t condition, uint8_t N_Tx) {
 	}
 
 	//00054321
-	if (N_Tx == 3) {//добавлено
-		if (condition == 0b00000111) {// 4й и 5й передатчики  не существуют
+	if (N_Tx == 3) {
+		if (condition == 0b00000111 || condition == 0b11111111) {// 4й и 5й передатчики  не существуют
 			K[T1][T1] = +0.75f; K[T1][T2] = +0.50f; K[T1][T3] = -0.25f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.25f; K[T2][T2] = +0.50f; K[T2][T3] = +0.25f; K[T2][T4] = +0.00f; K[T2][T5] = +0.00f;
 			K[T3][T1] = -0.25f; K[T3][T2] = +0.50f; K[T3][T3] = +0.75f; K[T3][T4] = +0.00f; K[T3][T5] = +0.00f;
 			K[T4][T1] = +0.00f; K[T4][T2] = +0.00f; K[T4][T3] = +0.00f; K[T4][T4] = +0.00f; K[T4][T5] = +0.00f;
 			K[T5][T1] = +0.00f; K[T5][T2] = +0.00f; K[T5][T3] = +0.00f; K[T5][T4] = +0.00f; K[T5][T5] = +0.00f;
 		}
-		else if (condition == 0b00000000) {// несимметризованные значения для всех передатчиков
+		else {// выводим несимметризованные значения для всех передатчиков
 			K[T1][T1] = +1.00f; K[T1][T2] = +0.00f; K[T1][T3] = +0.00f; K[T1][T4] = +0.00f; K[T1][T5] = +0.00f;
 			K[T2][T1] = +0.00f; K[T2][T2] = +1.00f; K[T2][T3] = +0.00f; K[T2][T4] = +0.00f; K[T2][T5] = +0.00f;
 			K[T3][T1] = +0.00f; K[T3][T2] = +0.00f; K[T3][T3] = +1.00f; K[T3][T4] = +0.00f; K[T3][T5] = +0.00f;
-			K[T4][T1] = +0.00f; K[T4][T2] = +0.00f; K[T4][T3] = +0.00f; K[T4][T4] = +1.00f; K[T4][T5] = +0.00f;
+			K[T4][T1] = +0.00f; K[T4][T2] = +0.00f; K[T4][T3] = +0.00f; K[T4][T4] = +0.00f; K[T4][T5] = +0.00f;
 			K[T5][T1] = +0.00f; K[T5][T2] = +0.00f; K[T5][T3] = +0.00f; K[T5][T4] = +0.00f; K[T5][T5] = +0.00f;
-		}
-		else {// работает меньше трех передатчиков
-			bool k1 = (condition >> 0) & 1u;
-			bool k2 = (condition >> 1) & 1u;
-			bool k3 = (condition >> 2) & 1u;
-			bool k4 = (condition >> 3) & 1u;
-			bool k5 = (condition >> 4) & 1u;
-			K[T1][T1] = 1.00f*k1; K[T1][T2] = 0.00f;    K[T1][T3] = 0.00f;    K[T1][T4] = 0.00f;    K[T1][T5] = 0.00f;
-			K[T2][T1] = 0.00f;    K[T2][T2] = 1.00f*k2; K[T2][T3] = 0.00f;    K[T2][T4] = 0.00f;    K[T2][T5] = 0.00f;
-			K[T3][T1] = 0.00f;    K[T3][T2] = 0.00f;    K[T3][T3] = 1.00f*k3; K[T3][T4] = 0.00f;    K[T3][T5] = 0.00f;
-			K[T4][T1] = 0.00f;    K[T4][T2] = 0.00f;    K[T4][T3] = 0.00f;    K[T4][T4] = 1.00f*k4; K[T4][T5] = 0.00f;
-			K[T5][T1] = 0.00f;    K[T5][T2] = 0.00f;    K[T5][T3] = 0.00f;    K[T5][T4] = 0.00f;    K[T5][T5] = 1.00f*k5;
 		}
 	}
 }
 
 // --------------------------------------------------------------------------
-// Экспортируемые функции извлечения и обработки фаз.
+// Извлечение и калибровка сигнала кадра.
 // --------------------------------------------------------------------------
 
 namespace {
 
-bool is_supported_frame_type(const ID& tool) {
-	return IsSupportedTool(tool);
-}
-
-// Копирует кадр прибора в локальную (обнулённую) GP_DATA с усечением по
-// struct_size — безопасно и для старых 240-байтовых, и для новых 320-байтовых
-// кадров. Возвращает распознанный идентификатор прибора через outTool.
-int get_validated_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
+// Копирует кадр прибора в обнулённую GP_DATA, но не более объявленного в
+// сигнатуре размера структуры. Возвращает распознанный идентификатор прибора.
+int read_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 	if (!data || !outFrame || shift < 0)
 	{
 		SetSondeLastError("Frame pointer, output pointer and non-negative shift are required.");
@@ -195,7 +181,7 @@ int get_validated_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 	uint32_t signature = 0;
 	std::memcpy(&signature, reinterpret_cast<const uint8_t*>(data) + shift, sizeof(signature));
 	const ID tool = get_sonde_id(signature);
-	if (!is_supported_frame_type(tool)) {
+	if (!IsSupportedTool(tool)) {
 		SetSondeLastError("The data frame contains an unsupported tool signature.");
 		return err::kUnsupportedType;
 	}
@@ -205,8 +191,8 @@ int get_validated_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 		return err::kMetrologyNotInitialized;
 	}
 
-	// Сравниваем только идентификатор прибора (младшие 6 разрядов): старшие
-	// разряды сигнатуры данных несут размер структуры и в метрологии могут быть 0.
+	// Сравнивается только идентификатор прибора (младшие 6 разрядов): старшие
+	// разряды сигнатуры данных несут размер структуры и в метрологии равны нулю.
 	if ((signature % 1000000u) != (global_signature % 1000000u)) {
 		std::ostringstream message;
 		message << "Metrology/data signature mismatch: metrology=" << global_signature
@@ -227,11 +213,7 @@ int get_validated_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 
 } // namespace
 
-// Готовые с контроллера величины из кадра: симметризованные фазы/затухания и УЭС
-// по фазе/затуханию. Амплитудный канал читается только из расширенного кадра (320 байт).
-extern "C" __declspec(dllexport) int get_express_data(void *Data, CAL_SIGNAL *cal_signal, RHO *rho, int shift) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
+int extract_express_data(void* data, int shift, CAL_SIGNAL* cal_signal, RHO* rho) {
 	if (!cal_signal || !rho)
 	{
 		SetSondeLastError("get_express_data requires non-null CAL_SIGNAL and RHO outputs.");
@@ -240,20 +222,19 @@ extern "C" __declspec(dllexport) int get_express_data(void *Data, CAL_SIGNAL *ca
 
 	GP_DATA gp = {};
 	ID tool = {};
-	int validationResult = get_validated_frame(Data, shift, &gp, &tool);
+	int validationResult = read_frame(data, shift, &gp, &tool);
 	if (validationResult != err::kOk)
 		return validationResult;
 
 	std::memset(cal_signal, 0, sizeof(CAL_SIGNAL));
 	std::memset(rho, 0, sizeof(RHO));
 
-	// Симметризованные фазы/УЭС уже разложены прибором по [частота][передатчик].
-	// Амплитудные каналы читаются только если прибор прислал расширенную структуру.
 	const bool hasAtt = tool.struct_size >= (offsetof(GP_DATA, att_smt_dB) + sizeof(gp.att_smt_dB));
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (int Tx = 0; Tx < config::kMaxTx; Tx++) {
 			cal_signal->phase[freq][Tx] = gp.phase_smt[freq][Tx];
 			rho->rho_ph[freq][Tx] = gp.rho_smt[freq][Tx];
+			// амплитудные измерения читаются, если пришла новая структура данных
 			if (hasAtt) {
 				cal_signal->att_dB[freq][Tx] = gp.att_smt_dB[freq][Tx];
 				rho->rho_att[freq][Tx] = gp.rho_att_smt[freq][Tx];
@@ -263,12 +244,7 @@ extern "C" __declspec(dllexport) int get_express_data(void *Data, CAL_SIGNAL *ca
 	return err::kOk;
 }
 
-// Калибровка сырых измерений кадра в фазовый и амплитудный (затухание) сигналы:
-// фазы — DELTA_PH за вычетом нулей воздуха; затухания — 20*log10(AM_RX_2/AM_RX_1)
-// за вычетом амплитудных нулей воздуха. Знак чередуется по передатчикам.
-extern "C" __declspec(dllexport) int get_cal_signal(void *Data, CAL_SIGNAL *cal_signal, int shift) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
+int calibrate_signal(void* data, int shift, CAL_SIGNAL* cal_signal) {
 	if (!cal_signal)
 	{
 		SetSondeLastError("get_cal_signal requires a non-null CAL_SIGNAL output.");
@@ -277,14 +253,15 @@ extern "C" __declspec(dllexport) int get_cal_signal(void *Data, CAL_SIGNAL *cal_
 
 	GP_DATA gp = {};
 	ID tool = {};
-	int validationResult = get_validated_frame(Data, shift, &gp, &tool);
+	int validationResult = read_frame(data, shift, &gp, &tool);
 	if (validationResult != err::kOk)
 		return validationResult;
 
+	// первый приемник смотрит на первый передатчик, разница фаз rx1-rx2
 	std::memset(cal_signal, 0, sizeof(CAL_SIGNAL));
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
-		// Знак чередуется по передатчикам, стартуя с +1 для T1.
-		float sign = 1.0f;
+		// ненулевые значения получают только существующие передатчики
+		float sign = 1.0f; // для Tx = 0 (T1) старт с +1.0f
 		for (int Tx = T1; Tx <= static_cast<int>(tool.N_Tx) && Tx < config::kMaxTx; Tx++) {
 			if (!std::isfinite(gp.DELTA_PH[freq][Tx])) {
 				std::ostringstream message;
@@ -293,23 +270,20 @@ extern "C" __declspec(dllexport) int get_cal_signal(void *Data, CAL_SIGNAL *cal_
 				SetSondeLastError(message.str());
 				return err::kDataFileLayout;
 			}
+			// калиброванные на воздух фазы
 			cal_signal->phase[freq][Tx] = sign * (gp.DELTA_PH[freq][Tx] - Air[freq][Tx]);
-			// Амплитудное затухание считается только при наличии амплитудных нулей
-			// воздуха и ненулевой амплитуды на первом приёмнике.
+			// если амплитудные нули воздуха != 0, вычисляются калиброванные на воздух амплитудные затухания
 			if (fabs(Air_att_dB[freq][Tx]) > 1e-10 && gp.AM_RX_1[freq][Tx] != 0.0f) {
 				cal_signal->att_dB[freq][Tx] =
 					sign * 20.0f * log10f(gp.AM_RX_2[freq][Tx] / gp.AM_RX_1[freq][Tx]) - Air_att_dB[freq][Tx];
 			}
-			sign = -sign;
+			sign = -sign; // меняет 1.0f на -1.0f, затем обратно на 1.0f
 		}
 	}
 	return err::kOk;
 }
 
-// Байт работоспособности передатчиков (condition) из кадра прибора.
-extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *condition, int shift) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
+int extract_condition(void* data, int shift, uint32_t* condition) {
 	if (!condition)
 	{
 		SetSondeLastError("get_condition requires a non-null output pointer.");
@@ -317,7 +291,7 @@ extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *conditi
 	}
 
 	GP_DATA gp = {};
-	int validationResult = get_validated_frame(Data, shift, &gp, nullptr);
+	int validationResult = read_frame(data, shift, &gp, nullptr);
 	if (validationResult != err::kOk)
 		return validationResult;
 
@@ -325,10 +299,7 @@ extern "C" __declspec(dllexport) int get_condition(void *Data, uint32_t *conditi
 	return err::kOk;
 }
 
-// Симметризация фазового и амплитудного каналов одной матрицей K.
-extern "C" __declspec(dllexport) int simmetry(CAL_SIGNAL *cal_signal_in, CAL_SIGNAL *cal_signal_smt, uint32_t condition) {
-	std::lock_guard<std::recursive_mutex> stateLock(SondeStateMutex());
-	ClearSondeLastError();
+int symmetrize_signal(CAL_SIGNAL* cal_signal_in, CAL_SIGNAL* cal_signal_smt, uint32_t condition) {
 	if (!cal_signal_in || !cal_signal_smt) {
 		SetSondeLastError("simmetry requires non-null input and output CAL_SIGNAL pointers.");
 		return err::kInvalidArgument;
@@ -339,7 +310,7 @@ extern "C" __declspec(dllexport) int simmetry(CAL_SIGNAL *cal_signal_in, CAL_SIG
 	}
 	const int N_Tx = static_cast<int>(global_active_tx);
 	//	                400  kGz  2000 kGz
-	//00000000 00000000 00012345 00012345
+	//00000000 00000000 00054321 00054321
 	uint8_t cond_1freq[2] = { 0, };
 	cond_1freq[_400_kGz] = static_cast<uint8_t>((condition >> 8) & 0xFFU);
 	cond_1freq[_2000_kGz] = static_cast<uint8_t>(condition & 0xFFU);
@@ -367,7 +338,7 @@ extern "C" __declspec(dllexport) int simmetry(CAL_SIGNAL *cal_signal_in, CAL_SIG
 				return err::kInvalidArgument;
 			}
 		}
-		formula_simmetry(K[freq], cond_1freq[freq], N_Tx);
+		formula_simmetry(K[freq], cond_1freq[freq], static_cast<uint8_t>(N_Tx));
 		for (int Tx = 0; Tx < N_Tx; Tx++) {
 			for (int n = 0; n < N_Tx; n++) {
 				cal_signal_smt->phase[freq][Tx] += K[freq][Tx][n] * cal_signal_in->phase[freq][n];

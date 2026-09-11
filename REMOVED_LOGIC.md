@@ -66,3 +66,71 @@
   разрядов сигнатуры (версионирование кадров, обратная совместимость 240/320).
 - Сигнатура `CARTOGRAPH_LWD_4Tx` исправлена 359 → **349**; папки весов
   `neuro-weights/CARTOGRAPH_LWD_4Tx-359` переименованы в `-349`.
+
+---
+
+# Чистка API и реорганизация файлов
+
+Дата: 2026-09-08. Из экспортируемых функций убраны аргументы, потерявшие смысл
+после перехода с палеток на нейросеть; исходники разложены по каталогам
+`api/`, `core/`, `platform/`.
+
+## Удалённые аргументы экспортируемых функций
+
+| Функция | Убранный аргумент | Чем был у коллеги |
+|---|---|---|
+| `sonde_set` | `const char* reserved` | `pallete_dir` — каталог поиска палеток `.icp`/`.asp` |
+| `calculate_Rho_AF` | `float ro_bh` | УЭС бурового раствора для `calc_Penetrition_zone_AF` |
+| `calculate_Rho_AF` | `int D_bhole_mm` | диаметр скважины (`r_bh_sm = D_bhole_mm / 20`) |
+| `calculate_Rho_AF` | `int pz_400` | код группы зондов для расчёта ЗП на 400 кГц |
+| `calculate_Rho_AF` | `int pz_2000` | код группы зондов для расчёта ЗП на 2000 кГц |
+
+Аргумент `SERVICE* service` сохранён без изменений. Поле `delta_percent_start`
+заполняется разбросом фазовых УЭС по активным зондам; поле `delta_percent_min`
+остаётся нулевым — у коллеги в него записывался критерий качества подбора по
+палетке, у нейросетевого расчёта такой величины нет.
+
+## Переименование
+
+`calculate_Rho_AF` → **`calculate_true_rho_neuro`**. Алиас со старым именем не
+экспортируется. Потребители обращаются к функции по строковому имени через
+`GetProcAddress`, поэтому `SONDE_DLL_TEST_NEW` обновлён синхронно.
+
+## Удалённые функции без вызовов
+
+`temp_deg`, `EndsWith`, `NormalizePhase`, `RxPhaseOrientationSign` (SondeCore),
+аргумент `ToolCapabilities* outCapabilities` у `validate_metrology`.
+
+## Удалённые данные и константы без использования
+
+- Глобальные `dfi_bh[2][5]`, `global_rx_position`.
+- Поля `SONDE_PARAM`: `M`, `log_M`, `D_sonde_m` (последнее использовалось только
+  в `DFI_bhole`), вместе с ними — подстановка диаметра прибора по умолчанию.
+- Типы `Q_B`, `D_Border`, `IQA`, `ZP`, `AS`, `INF_CYL`; перечисление `T_CAL`;
+  макросы `Complex`, `float16_t`, `int32_t`.
+- Константы `mV`, `sG`, `kSondeRadiusM`, `kRoSolverInfinity`,
+  `kGoldenInfinityEpsilon`, `kFirmwareMilligradPerRadian`,
+  `kDefaultAutonomSondeDiameterMm`, `kDefaultLwdSondeDiameterMm`.
+- Файл-агрегатор `variable.h`; 19 неиспользуемых локальных переменных в
+  `harmonics_clear`.
+
+## Расхождения с кодом коллеги, приведённые к его логике
+
+1. `formula_simmetry`, ветка `N_Tx == 3`: условие симметризации расширено до
+   `condition == 0b00000111 || condition == 0b11111111`; лишняя ветка
+   `0b00000000` и битовая маска заменены единственной ветвью «несимметризованные
+   значения» с единичными коэффициентами для T1-T3.
+2. Приведение фазовых нулей воздуха выполняется делением на `mG`
+   (`1000*180/PI`) вместо константы `57297.0f`.
+3. `fill_sonde_params` заполняет параметры всех пяти слотов зондов.
+
+## Структура исходников
+
+```
+SONDE_DLL_1.0/
+├── api/         SondeApi.h, SondeApi.cpp — все 14 экспортов
+├── core/        Types, Constants, SondeIdentity, SondeState, Metrology,
+│                SignalCalibration, Resistivity, NeuroResistivity,
+│                InvasionForward, DataFile, AntiSpiral
+└── platform/    dllmain, Logger, ErrorState, NeuroPredictor, neuro_api
+```

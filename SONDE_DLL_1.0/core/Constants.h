@@ -1,7 +1,7 @@
 #pragma once
 // Constants.h
-// Централизованные конфигурационные и физические константы проекта SONDE_DLL.
-
+// Физические константы, коды типов приборов, конфигурационные параметры
+// расчёта и коды возврата экспортируемых функций.
 
 #include <cmath>
 
@@ -11,10 +11,8 @@
 const double PI = 3.1415927410125732;
 const double eps0 = 8.85 * 1e-12;
 const double mu0 = 4 * PI * 1e-7;
-const float mV = 2500.0f / 268435456.0f;
-const float mG = static_cast<float>(1000.0 * 180.0 / PI);
-const float sG = static_cast<float>(200.0 * 180.0 / PI); // цена дискреты = 0.005 градуса
-const float Grad = static_cast<float>(180.0 / PI);
+const float mG = static_cast<float>(1000.0 * 180.0 / PI);  // милиградусы в радиане
+const float Grad = static_cast<float>(180.0 / PI);         // градусы в радиане
 
 // --------------------------------------------------------------------------
 // Сигнатурные коды типов приборов ЭМК.
@@ -39,7 +37,7 @@ constexpr int kMaxTx = 5;     // максимальное число перед�
 
 // Нейросетевой предиктор (NEURO_TEST.dll).
 constexpr int kNeuroInputCount = 8;  // 4 Tx * 2 частоты
-constexpr int kNeuroOutputCount = 3; // Ro_p, Ro_zp, R_zp
+constexpr int kNeuroOutputCount = 3; // r_inv, rho_inv, rho_form
 constexpr char kNeuroDllName[] = "NEURO_TEST.dll";
 constexpr char kNeuroWeightsRootDir[] = "neuro-weights";
 constexpr char kNeuroCreateFn[] = "GeoPredictor_Create";
@@ -51,24 +49,16 @@ constexpr char kNeuroLastErrorFn[] = "GeoPredictor_GetLastError";
 constexpr char kLogFileName[] = "Test.txt";
 
 // Метрология.
-constexpr int kDefaultAutonomSondeDiameterMm = 90;
-constexpr int kDefaultLwdSondeDiameterMm = 120;
 constexpr char kMetrologyExtension[] = ".bin";
-constexpr float kFirmwareMilligradPerRadian = 57297.0f;
 
-// Решатель УЭС методом золотого сечения (RO_dFI).
-constexpr float kRoSolverMin = 0.01f;          // минимальное УЭС поиска (фазовый канал)
-constexpr float kRoSolverMax = 7000.0f;        // максимальное УЭС поиска (фазовый канал)
-constexpr float kRoAttSolverMax = 1000.0f;     // максимальное УЭС поиска (амплитудный канал)
-constexpr float kGoldenEpsilon = 0.0000005f;   // критерий совпадения фазы
-constexpr float kGoldenInfinityEpsilon = 0.000000005f;
-constexpr float kRoSolverInfinity = 7200.0f;
-constexpr float kGoldenFactor = 0.382f;        // коэффициент золотого сечения
+// Решатель УЭС методом золотого сечения.
+constexpr float kRoSolverMin = 0.01f;        // мин. значение УЭС для расчёта
+constexpr float kRoSolverMax = 7000.0f;      // макс. значение УЭС для расчёта (фазовый канал)
+constexpr float kRoAttSolverMax = 1000.0f;   // макс. значение УЭС для расчёта (амплитудный канал)
+constexpr float kGoldenEpsilon = 0.0000005f; // точность фазы и амплитуды
+constexpr float kGoldenFactor = 0.382f;      // коэффициент золотого сечения
 
-// Компенсация влияния скважины (DFI_bhole).
-constexpr float kSondeRadiusM = 0.06f; // эффективный радиус прибора
-
-// Маркер недопустимой фазы (ph_smt_ro).
+// Маркер недопустимого значения сигнала (signal_smt_from_ro).
 constexpr float kInvalidPhase = -32768.00f;
 
 } // namespace config

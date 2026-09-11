@@ -8,7 +8,7 @@
 #include "NeuroPredictor.h"
 #include "Constants.h"
 #include "Logger.h"
-#include "SondeCore.h"
+#include "SondeIdentity.h"
 #include "ErrorState.h"
 #include "neuro_api.h"
 

@@ -128,10 +128,6 @@ int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win) {
 		return err::kNumericalFailure;
 
 	double B[5][5] = { 0.0f, }, D[5] = { 0.0f, }; double X[5] = { 0.0f, };
-	double Scosfi = 0, Ssinfi = 0, Ssinficosfi = 0, SsinKfi = 0, ScosKfi = 0;
-	double Scos2ficosfi = 0, Ssin2fisinfi = 0, Ssin2ficosfi = 0, Scos2fisinfi = 0;
-	double Ssin2ficos2fi = 0, Ssin2fi = 0, Scos2fi = 0, SsinK2fi = 0, ScosK2fi = 0;
-	double V_ = 0, V_cosfi = 0, V_sinfi = 0, V_cos2fi = 0, V_sin2fi = 0;
 	double Angle = 0;
 
 	for (int i = 0; i < win; i++) {
@@ -179,11 +175,7 @@ int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win) {
 	return err::kOk;
 }
 
-// Подавление спиральной помехи: по скользящему окну длины win_f выполняется
-// гармоническая фильтрация (harmonics_clear), результат сглаживается скользящим
-// средним длины win_ma.
-extern "C" __declspec(dllexport) int anti_spiral(double *Sgn_in, double *Sgn_out, int length, int win_f, int win_ma) {
-	ClearSondeLastError();
+int suppress_spiral(double *Sgn_in, double *Sgn_out, int length, int win_f, int win_ma) {
 	if (!Sgn_in || !Sgn_out) {
 		SetSondeLastError("anti_spiral requires non-null input and output arrays.");
 		return err::kInvalidArgument;
@@ -211,8 +203,11 @@ extern "C" __declspec(dllexport) int anti_spiral(double *Sgn_in, double *Sgn_out
 			Sgn_out_buff = Sgn_in[n + win_f / 2];
 
 		//скользящее среднее
+		//вычитаем значение i ячейки массива окна из суммы всех значений окна скользящего среднего
 		Sgn_ma_summ -= movingAverageBuffer[w_ma];
+		//обновляем i ячейку массива окна скользящего среднего
 		movingAverageBuffer[w_ma] = Sgn_out_buff;
+		//прибавляем обновленное значение i ячейки массива к сумме всех значений окна
 		Sgn_ma_summ += movingAverageBuffer[w_ma];
 
 		w_ma++;

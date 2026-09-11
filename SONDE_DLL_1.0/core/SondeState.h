@@ -1,24 +1,19 @@
 #pragma once
 // SondeState.h
 // Разделяемое состояние времени выполнения, формируемое функцией sonde_set и
-// используемое расчётными модулями. Имена глобальных объектов сохранены
-// идентичными исходным, чтобы минимизировать изменения в логике.
+// используемое расчётными модулями.
 
 #include "Types.h"
 #include <mutex>
 
-// Геометрические и частотные параметры зондов [частота][Tx], заполняются из
-// файла метрологии.
+// Геометрические и частотные параметры зондов [частота][Tx] из файла метрологии.
 extern SONDE_PARAM param[2][5];
 
-// Фазовые поправки "нули воздуха" [частота][Tx], рад.
+// Фазовые нули воздуха [частота][Tx], рад.
 extern float Air[2][5];
 
-// Амплитудные поправки "нули воздуха" [частота][Tx], дБ.
+// Амплитудные нули воздуха [частота][Tx], дБ.
 extern float Air_att_dB[2][5];
-
-// Фазовые поправки за влияние скважины [частота][Tx] (borehole_offset).
-extern float dfi_bh[2][5];
 
 // Сигнатура из файла метрологии, полученная в sonde_set.
 extern uint32_t global_signature;
@@ -28,12 +23,12 @@ extern ID id;
 
 extern GP_METROLOGY current_metrology;
 extern uint32_t global_active_tx;
-extern uint32_t global_rx_position;
 extern bool sonde_initialized;
 
 // Сериализует смену метрологии и вычисления над общим ABI-контекстом DLL.
 std::recursive_mutex& SondeStateMutex();
 
+// Фиксирует состояние прибора после успешной загрузки метрологии.
 void CommitSondeState(
 	const GP_METROLOGY& metrology,
 	const ID& tool,
