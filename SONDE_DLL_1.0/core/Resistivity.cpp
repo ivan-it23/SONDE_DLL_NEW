@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include <cmath>
 #include <complex>
@@ -77,11 +77,11 @@ float RO_ATT(SONDE_PARAM param, double att_dB) {
 
 int compute_rho(CAL_SIGNAL* cal_signal, RHO* rho) {
 	if (!cal_signal || !rho) {
-		SetSondeLastError("calculate_rho requires non-null CAL_SIGNAL input and RHO output.");
+		SetSondeLastError("calculate_rho: не заданы входная структура CAL_SIGNAL или выходная RHO.");
 		return err::kInvalidArgument;
 	}
 	if (!sonde_initialized) {
-		SetSondeLastError("sonde_set must complete successfully before calculate_rho.");
+		SetSondeLastError("Перед вызовом calculate_rho необходимо успешно выполнить sonde_set.");
 		return err::kMetrologyNotInitialized;
 	}
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
@@ -107,7 +107,7 @@ int correct_rho_to_ref_point(
 	RHO* rho_required_desired_point) {
 	if (!metrologyPath || !rho_calk_ref_point || !rho_need_ref_point ||
 		!rho_calk_desired_point || !rho_required_desired_point) {
-		SetSondeLastError("rho_corr_ref_point requires a metrology path and four non-null RHO pointers.");
+		SetSondeLastError("rho_corr_ref_point: не заданы путь к файлу метрологии или один из четырёх указателей RHO.");
 		return err::kInvalidArgument;
 	}
 	SONDE_PARAM localParam[2][5] = { 0, };
@@ -149,11 +149,11 @@ int correct_rho_to_ref_point(
 
 int compute_signal_from_rho(RHO* rho_calk, CAL_SIGNAL* cal_signal) {
 	if (!rho_calk || !cal_signal) {
-		SetSondeLastError("signal_smt_from_ro requires non-null RHO input and CAL_SIGNAL output.");
+		SetSondeLastError("signal_smt_from_ro: не заданы входная структура RHO или выходная CAL_SIGNAL.");
 		return err::kInvalidArgument;
 	}
 	if (!sonde_initialized) {
-		SetSondeLastError("sonde_set must complete successfully before signal_smt_from_ro.");
+		SetSondeLastError("Перед вызовом signal_smt_from_ro необходимо успешно выполнить sonde_set.");
 		return err::kMetrologyNotInitialized;
 	}
 	for (int freq = 0; freq < config::kFreqCount; freq++) {

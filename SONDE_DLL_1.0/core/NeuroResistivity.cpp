@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include <cmath>
 #include <string>
@@ -16,11 +16,11 @@ using namespace std;
 
 int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service) {
 	if (!cal_signal || !Ro_3c || !service) {
-		SetSondeLastError("calculate_true_rho_neuro requires non-null CAL_SIGNAL, RHO and SERVICE pointers.");
+		SetSondeLastError("calculate_true_rho_neuro: не заданы указатели на CAL_SIGNAL, RHO или SERVICE.");
 		return err::kInvalidArgument;
 	}
 	if (!sonde_initialized) {
-		SetSondeLastError("sonde_set must complete successfully before calculate_true_rho_neuro.");
+		SetSondeLastError("Перед вызовом calculate_true_rho_neuro необходимо успешно выполнить sonde_set.");
 		return err::kMetrologyNotInitialized;
 	}
 
@@ -36,7 +36,7 @@ int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service)
 	}
 
 	if (!IsNeuralLwd4Tx(id)) {
-		SetSondeLastError("Neural calculation is supported only for LWD 4Tx and Cartograph LWD-mode 4Tx tools.");
+		SetSondeLastError("Нейросетевой расчёт поддерживается только для приборов LWD и картографа в режиме LWD с четырьмя передатчиками.");
 		return err::kUnsupportedType;
 	}
 
@@ -44,7 +44,7 @@ int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service)
 	for (int freq = 0; freq < config::kFreqCount; freq++) {
 		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++) {
 			if (!std::isfinite(cal_signal->phase[freq][Tx])) {
-				SetSondeLastError("calculate_true_rho_neuro received a non-finite active phase value.");
+				SetSondeLastError("calculate_true_rho_neuro: получено нечисловое значение фазы активного зонда.");
 				return err::kInvalidArgument;
 			}
 			Ro_3c->rho_ph[freq][Tx] = RO_ARG(param[freq][Tx], cal_signal->phase[freq][Tx]);
@@ -67,8 +67,8 @@ int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service)
 	}
 
 	if (!neuro_available()) {
-		SetSondeLastError("Neural predictor is not initialized for the current signature.");
-		if (debug == true) Test << "calculate_true_rho_neuro neuro predictor not initialized" << endl;
+		SetSondeLastError("Нейросетевой предиктор не инициализирован для текущей сигнатуры прибора.");
+		if (debug == true) Test << "calculate_true_rho_neuro: нейросетевой предиктор не инициализирован" << endl;
 		return err::kNeuroNotInitialized;
 	}
 
@@ -79,11 +79,11 @@ int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service)
 		raw_inputs[Tx + 4] = cal_signal->phase[1][Tx] * Grad;
 	}
 	if (debug == true) {
-		Test << "[NEURO] sym_phases_400: ";
+		Test << "[NEURO] симметризованные фазы 400: ";
 		for (int Tx = 0; Tx < 4; Tx++) Test << cal_signal->phase[0][Tx] << " ";
-		Test << "sym_phases_2000: ";
+		Test << "симметризованные фазы 2000: ";
 		for (int Tx = 0; Tx < 4; Tx++) Test << cal_signal->phase[1][Tx] << " ";
-		Test << "raw_inputs: ";
+		Test << "входы сети: ";
 		for (int i = 0; i < config::kNeuroInputCount; i++) Test << raw_inputs[i] << " ";
 		Test << endl;
 	}
@@ -92,13 +92,13 @@ int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service)
 	int neuro_result = neuro_predict(raw_inputs, out_results);
 	if (neuro_result != err::kOk) {
 		if (debug == true) {
-			Test << "calculate_true_rho_neuro neuro predict failed, code " << neuro_result << endl;
+			Test << "calculate_true_rho_neuro: сбой предсказания, код " << neuro_result << endl;
 			if (neuro_last_error())
-				Test << "neuro error: " << neuro_last_error() << endl;
+				Test << "ошибка нейросети: " << neuro_last_error() << endl;
 		}
 		if (GetSondeLastError()[0] == '\0') {
-			std::string detail = "Neural prediction failed.";
-			if (neuro_last_error()) detail += std::string(" Runtime: ") + neuro_last_error();
+			std::string detail = "Сбой нейросетевого предсказания.";
+			if (neuro_last_error()) detail += std::string(" Сообщение нейросетевой библиотеки: ") + neuro_last_error();
 			SetSondeLastError(detail);
 		}
 		return err::kNeuroPredictFailed;
@@ -110,17 +110,17 @@ int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service)
 	const float rho_form = out_results[2];
 	if (!std::isfinite(r_inv_m) || !std::isfinite(rho_inv) || !std::isfinite(rho_form) ||
 		r_inv_m <= 0.0f || rho_inv <= 0.0f || rho_form <= 0.0f) {
-		SetSondeLastError("Neural predictor returned non-finite or non-positive physical parameters.");
+		SetSondeLastError("Нейросеть вернула нечисловые или неположительные значения физических параметров.");
 		return err::kNeuroPredictFailed;
 	}
 
 	// R_zp хранится в структуре RHO в сантиметрах
 	const float r_inv_cm = r_inv_m * 100.0f;
 	if (debug == true) {
-		Test << "[NEURO] predict raw: r_inv_m=" << r_inv_m
+		Test << "[NEURO] выход сети: r_inv_m=" << r_inv_m
 		     << " rho_inv=" << rho_inv
 		     << " rho_form=" << rho_form << endl;
-		Test << "[NEURO] mapped: rho_p=" << rho_form
+		Test << "[NEURO] запись в RHO: rho_p=" << rho_form
 		     << " rho_zp=" << rho_inv
 		     << " R_zp_cm=" << r_inv_cm << endl;
 	}
@@ -132,10 +132,10 @@ int compute_true_rho_neuro(CAL_SIGNAL* cal_signal, RHO* Ro_3c, SERVICE* service)
 	}
 
 	if (debug == true) {
-		Test << "[RO_ARG] depth=" << cal_signal->Depth << " | Ro 400 T1-T4: ";
+		Test << "[RO_ARG] depth=" << cal_signal->Depth << " | УЭС 400 T1-T4: ";
 		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
 			Test << Ro_3c->rho_ph[0][Tx] << " ";
-		Test << "| Ro 2000 T1-T4: ";
+		Test << "| УЭС 2000 T1-T4: ";
 		for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
 			Test << Ro_3c->rho_ph[1][Tx] << " ";
 		Test << "| Ro_p=" << Ro_3c->rho_p[0] << endl;

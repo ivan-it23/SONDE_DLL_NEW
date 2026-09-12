@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "SignalCalibration.h"
 #include "SondeState.h"
 #include "SondeIdentity.h"
@@ -174,7 +174,7 @@ namespace {
 int read_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 	if (!data || !outFrame || shift < 0)
 	{
-		SetSondeLastError("Frame pointer, output pointer and non-negative shift are required.");
+		SetSondeLastError("Не заданы указатель на кадр, выходной указатель либо задано отрицательное смещение shift.");
 		return err::kInvalidArgument;
 	}
 
@@ -182,12 +182,12 @@ int read_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 	std::memcpy(&signature, reinterpret_cast<const uint8_t*>(data) + shift, sizeof(signature));
 	const ID tool = get_sonde_id(signature);
 	if (!IsSupportedTool(tool)) {
-		SetSondeLastError("The data frame contains an unsupported tool signature.");
+		SetSondeLastError("Кадр данных содержит сигнатуру неподдерживаемого типа прибора.");
 		return err::kUnsupportedType;
 	}
 
 	if (!sonde_initialized || global_signature == 0) {
-		SetSondeLastError("sonde_set must complete successfully before frame processing.");
+		SetSondeLastError("Перед обработкой кадров необходимо успешно выполнить sonde_set.");
 		return err::kMetrologyNotInitialized;
 	}
 
@@ -195,8 +195,8 @@ int read_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 	// разряды сигнатуры данных несут размер структуры и в метрологии равны нулю.
 	if ((signature % 1000000u) != (global_signature % 1000000u)) {
 		std::ostringstream message;
-		message << "Metrology/data signature mismatch: metrology=" << global_signature
-			<< ", frame=" << signature << ".";
+		message << "Несовпадение сигнатур метрологии и данных: метрология=" << global_signature
+			<< ", кадр=" << signature << ".";
 		SetSondeLastError(message.str());
 		return err::kFrameSignatureMismatch;
 	}
@@ -216,7 +216,7 @@ int read_frame(void* data, int shift, GP_DATA* outFrame, ID* outTool) {
 int extract_express_data(void* data, int shift, CAL_SIGNAL* cal_signal, RHO* rho) {
 	if (!cal_signal || !rho)
 	{
-		SetSondeLastError("get_express_data requires non-null CAL_SIGNAL and RHO outputs.");
+		SetSondeLastError("get_express_data: не заданы выходные структуры CAL_SIGNAL или RHO.");
 		return err::kInvalidArgument;
 	}
 
@@ -247,7 +247,7 @@ int extract_express_data(void* data, int shift, CAL_SIGNAL* cal_signal, RHO* rho
 int calibrate_signal(void* data, int shift, CAL_SIGNAL* cal_signal) {
 	if (!cal_signal)
 	{
-		SetSondeLastError("get_cal_signal requires a non-null CAL_SIGNAL output.");
+		SetSondeLastError("get_cal_signal: не задана выходная структура CAL_SIGNAL.");
 		return err::kInvalidArgument;
 	}
 
@@ -265,7 +265,7 @@ int calibrate_signal(void* data, int shift, CAL_SIGNAL* cal_signal) {
 		for (int Tx = T1; Tx <= static_cast<int>(tool.N_Tx) && Tx < config::kMaxTx; Tx++) {
 			if (!std::isfinite(gp.DELTA_PH[freq][Tx])) {
 				std::ostringstream message;
-				message << "get_cal_signal received a non-finite DELTA_PH at F" << freq
+				message << "get_cal_signal: нечисловое значение DELTA_PH, F" << freq
 					<< " T" << (Tx + 1) << ".";
 				SetSondeLastError(message.str());
 				return err::kDataFileLayout;
@@ -286,7 +286,7 @@ int calibrate_signal(void* data, int shift, CAL_SIGNAL* cal_signal) {
 int extract_condition(void* data, int shift, uint32_t* condition) {
 	if (!condition)
 	{
-		SetSondeLastError("get_condition requires a non-null output pointer.");
+		SetSondeLastError("get_condition: не задан выходной указатель.");
 		return err::kInvalidArgument;
 	}
 
@@ -301,11 +301,11 @@ int extract_condition(void* data, int shift, uint32_t* condition) {
 
 int symmetrize_signal(CAL_SIGNAL* cal_signal_in, CAL_SIGNAL* cal_signal_smt, uint32_t condition) {
 	if (!cal_signal_in || !cal_signal_smt) {
-		SetSondeLastError("simmetry requires non-null input and output CAL_SIGNAL pointers.");
+		SetSondeLastError("simmetry: не заданы входная или выходная структура CAL_SIGNAL.");
 		return err::kInvalidArgument;
 	}
 	if (!sonde_initialized) {
-		SetSondeLastError("sonde_set must complete successfully before simmetry.");
+		SetSondeLastError("Перед вызовом simmetry необходимо успешно выполнить sonde_set.");
 		return err::kMetrologyNotInitialized;
 	}
 	const int N_Tx = static_cast<int>(global_active_tx);
@@ -315,7 +315,7 @@ int symmetrize_signal(CAL_SIGNAL* cal_signal_in, CAL_SIGNAL* cal_signal_smt, uin
 	cond_1freq[_400_kGz] = static_cast<uint8_t>((condition >> 8) & 0xFFU);
 	cond_1freq[_2000_kGz] = static_cast<uint8_t>(condition & 0xFFU);
 	if (N_Tx < 3 || N_Tx > config::kMaxTx) {
-		SetSondeLastError("Current metrology contains an invalid active transmitter count.");
+		SetSondeLastError("В загруженной метрологии недопустимое число активных передатчиков.");
 		return err::kUnsupportedType;
 	}
 
@@ -332,7 +332,7 @@ int symmetrize_signal(CAL_SIGNAL* cal_signal_in, CAL_SIGNAL* cal_signal_smt, uin
 			if (!std::isfinite(cal_signal_in->phase[freq][tx]) ||
 				!std::isfinite(cal_signal_in->att_dB[freq][tx])) {
 				std::ostringstream message;
-				message << "simmetry received a non-finite signal at F" << freq
+				message << "simmetry: нечисловое значение сигнала, F" << freq
 					<< " T" << (tx + 1) << ".";
 				SetSondeLastError(message.str());
 				return err::kInvalidArgument;

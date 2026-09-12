@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "Logger.h"
 #include "Constants.h"
 
@@ -42,7 +42,7 @@ void set_enabled(bool enabled) {
 	if (enabled) {
 		Test.open(Test_Name);
 		debug.store(true, memory_order_release);
-		Test << "debug logging enabled" << endl;
+		Test << "отладочное протоколирование включено" << endl;
 	} else {
 		debug.store(false, memory_order_release);
 		Test.close();

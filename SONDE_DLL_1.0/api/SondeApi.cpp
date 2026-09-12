@@ -1,4 +1,4 @@
-// SondeApi.cpp
+﻿// SondeApi.cpp
 // Единственная точка экспорта библиотеки SONDE_DLL. Функции сериализуют доступ
 // к состоянию прибора, сбрасывают текст последней ошибки и делегируют расчёт
 // модулям каталога core.
@@ -55,11 +55,11 @@ extern "C" __declspec(dllexport) int sonde_set(void *Metrology) {
 		candidateAirAttDb);
 
 	if (debug == true) {
-		Test << std::dec << "sonde_set signature " << signature
-			<< " tool_type " << id.type
-			<< " tool_N_Tx " << id.N_Tx
-			<< " tool_mod " << id.mod
-			<< " tool_number " << id.number
+		Test << std::dec << "sonde_set: сигнатура " << signature
+			<< " тип " << id.type
+			<< " передатчиков " << id.N_Tx
+			<< " модификация " << id.mod
+			<< " номер " << id.number
 			<< " Rx_Position " << current_metrology.Rx_Position << endl;
 		for (uint32_t tx = 0; tx < global_active_tx; ++tx)
 			Test << "sonde_set T" << (tx + 1) << " L1 " << metrology.L1[tx]

@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include <fstream>
 #include <cstring>
@@ -27,22 +27,22 @@ int validate_metrology(const GP_METROLOGY& metrology) {
 	const ToolCapabilities capabilities = GetToolCapabilities(metrology.signature);
 	if (!capabilities.supported) {
 		std::ostringstream message;
-		message << "Unsupported tool signature code " << capabilities.identity.type
-			<< " (family=" << capabilities.identity.type_
-			<< ", transmitters=" << capabilities.identity.N_Tx
-			<< ", modification=" << capabilities.identity.mod << ").";
+		message << "Неподдерживаемый код типа прибора " << capabilities.identity.type
+			<< " (семейство " << capabilities.identity.type_
+			<< ", передатчиков " << capabilities.identity.N_Tx
+			<< ", модификация " << capabilities.identity.mod << ").";
 		SetSondeLastError(message.str());
 		return err::kUnsupportedType;
 	}
 
 	if (capabilities.activeTx < 3 || capabilities.activeTx > config::kMaxTx) {
-		SetSondeLastError("Metrology signature contains an invalid transmitter count.");
+		SetSondeLastError("В сигнатуре метрологии указано недопустимое число передатчиков.");
 		return err::kMetrologyLayout;
 	}
 
 	if (metrology.Rx_Position > 1U) {
 		std::ostringstream message;
-		message << "Invalid Rx_Position=" << metrology.Rx_Position << "; expected 0 or 1.";
+		message << "Недопустимое значение Rx_Position=" << metrology.Rx_Position << "; ожидается 0 или 1.";
 		SetSondeLastError(message.str());
 		return err::kMetrologyRxPosition;
 	}
@@ -70,9 +70,9 @@ int validate_metrology(const GP_METROLOGY& metrology) {
 	}
 	if (hasMissingGeometry) {
 		std::ostringstream message;
-		message << "Metrology geometry is incomplete for a "
-			<< static_cast<int>(capabilities.activeTx) << "-transmitter tool: "
-			<< missing.str() << ". Fill every active L1/L2 value and both frequencies.";
+		message << "Неполная геометрия в метрологии для прибора с "
+			<< static_cast<int>(capabilities.activeTx) << " передатчиками: "
+			<< missing.str() << ". Заполните L1 и L2 всех активных зондов и обе частоты.";
 		SetSondeLastError(message.str());
 		return err::kMetrologyGeometry;
 	}
@@ -82,20 +82,20 @@ int validate_metrology(const GP_METROLOGY& metrology) {
 
 int read_metrology_file(const char* path, GP_METROLOGY* outMetro, uint32_t* outSignature) {
 	if (!path || !outMetro || !outSignature) {
-		SetSondeLastError("Metrology path and output pointers must not be null.");
+		SetSondeLastError("Не заданы путь к файлу метрологии или выходные указатели.");
 		return err::kInvalidArgument;
 	}
 	if (!has_extension(path, config::kMetrologyExtension)) {
-		SetSondeLastError("Metrology file must have the .bin extension.");
-		if (debug == true) Test << "sonde_set Metrology file no .bin ext " << endl;
+		SetSondeLastError("Файл метрологии должен иметь расширение .bin.");
+		if (debug == true) Test << "sonde_set: у файла метрологии не расширение .bin" << endl;
 		return err::kMetrologyFile;
 	}
 
 	ifstream Metro;
 	Metro.open(path, ios::binary);
 	if (!Metro.is_open()) {
-		SetSondeLastError(std::string("Unable to open metrology file: ") + path);
-		if (debug == true) Test << "sonde_set Unable to open Metrology file  " << endl;
+		SetSondeLastError(std::string("Не удалось открыть файл метрологии: ") + path);
+		if (debug == true) Test << "sonde_set: не удалось открыть файл метрологии" << endl;
 		return err::kMetrologyFile;
 	}
 
@@ -103,9 +103,9 @@ int read_metrology_file(const char* path, GP_METROLOGY* outMetro, uint32_t* outS
 	const std::streamoff size = Metro.tellg();
 	if (size != static_cast<std::streamoff>(sizeof(GP_METROLOGY))) {
 		std::ostringstream message;
-		message << "Invalid metrology file size: " << size
-			<< " bytes; the current GP_METROLOGY layout requires exactly "
-			<< sizeof(GP_METROLOGY) << " bytes.";
+		message << "Недопустимый размер файла метрологии: " << size
+			<< " байт; структура GP_METROLOGY требует ровно "
+			<< sizeof(GP_METROLOGY) << " байт.";
 		SetSondeLastError(message.str());
 		return err::kMetrologySize;
 	}
@@ -114,7 +114,7 @@ int read_metrology_file(const char* path, GP_METROLOGY* outMetro, uint32_t* outS
 	Metro.seekg(0, ios::beg);
 	Metro.read(reinterpret_cast<char*>(&loaded), sizeof(loaded));
 	if (!Metro || Metro.gcount() != static_cast<std::streamsize>(sizeof(loaded))) {
-		SetSondeLastError("Metrology file is truncated or could not be read completely.");
+		SetSondeLastError("Файл метрологии оборван или прочитан не полностью.");
 		return err::kMetrologyFile;
 	}
 

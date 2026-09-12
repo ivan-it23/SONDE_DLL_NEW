@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // Logger.h
 // Управление диагностическим логом DLL (файл Test.txt) и флагом отладки.
 // Объекты Test и debug доступны расчётным модулям через extern.

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // NeuroResistivity.h
 // Расчёт истинного УЭС пласта и параметров зоны проникновения нейросетью.
 

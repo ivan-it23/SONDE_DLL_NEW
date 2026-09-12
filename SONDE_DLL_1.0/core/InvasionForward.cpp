@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include <complex>
 #include <cmath>
@@ -241,15 +241,15 @@ float Vzz_inf_cyl(SONDE_PARAM param, float Ro_p, float Ro_zp, float rzp) {
 
 int compute_zp_phases(RHO* Ro_src, CAL_SIGNAL* Phase) {
 	if (Ro_src == nullptr || Phase == nullptr) {
-		SetSondeLastError("ph_smt_zp requires non-null RHO input and CAL_SIGNAL output.");
+		SetSondeLastError("ph_smt_zp: не заданы входная структура RHO или выходная CAL_SIGNAL.");
 		return err::kInvalidArgument;
 	}
 	if (!sonde_initialized) {
-		SetSondeLastError("sonde_set must complete successfully before ph_smt_zp.");
+		SetSondeLastError("Перед вызовом ph_smt_zp необходимо успешно выполнить sonde_set.");
 		return err::kMetrologyNotInitialized;
 	}
 	if (!IsNeuralLwd4Tx(id)) {
-		SetSondeLastError("ph_smt_zp is available only for neural LWD/Cartograph 4Tx calculations.");
+		SetSondeLastError("ph_smt_zp доступна только для приборов LWD и картографа в режиме LWD с четырьмя передатчиками.");
 		return err::kUnsupportedType;
 	}
 
@@ -259,7 +259,7 @@ int compute_zp_phases(RHO* Ro_src, CAL_SIGNAL* Phase) {
 		const float R_zp_m = Ro_src->R_zp[freq] / 100.0f; // см -> м
 		if (!std::isfinite(Ro_p) || !std::isfinite(Ro_zp) || !std::isfinite(R_zp_m) ||
 			Ro_p <= 0.0f || Ro_zp <= 0.0f || R_zp_m <= 0.0f) {
-			SetSondeLastError("ph_smt_zp requires positive finite rho_p, rho_zp and R_zp values for both frequencies.");
+			SetSondeLastError("ph_smt_zp: значения rho_p, rho_zp и R_zp должны быть конечными и положительными на обеих частотах.");
 			return err::kInvalidArgument;
 		}
 
@@ -271,7 +271,7 @@ int compute_zp_phases(RHO* Ro_src, CAL_SIGNAL* Phase) {
 				Phase->phase[freq][Tx] = Vzz_inf_cyl(param[freq][Tx], Ro_p, Ro_zp, R_zp_m);
 			}
 			else {
-				SetSondeLastError("ph_smt_zp cannot calculate a phase because an active L1/L2 geometry value is zero.");
+				SetSondeLastError("ph_smt_zp: расчёт фазы невозможен, у активного зонда нулевая геометрия L1 или L2.");
 				return err::kMetrologyGeometry;
 			}
 		}
@@ -280,7 +280,7 @@ int compute_zp_phases(RHO* Ro_src, CAL_SIGNAL* Phase) {
 	if (debug == true) {
 		Test << "[ZP] ph_smt_zp rho_p=" << Ro_src->rho_p[0]
 		     << " rho_zp=" << Ro_src->rho_zp[0]
-		     << " R_zp(cm)=" << Ro_src->R_zp[0] << " phases(mG): ";
+		     << " R_zp(cm)=" << Ro_src->R_zp[0] << " фазы(мГрад): ";
 		for (int freq = 0; freq < config::kFreqCount; freq++)
 			for (uint32_t Tx = 0; Tx < global_active_tx; Tx++)
 				Test << Phase->phase[freq][Tx] * mG << " ";

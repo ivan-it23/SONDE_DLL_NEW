@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // Публичный ABI-контракт SONDE_DLL_NEW для подключения к приложению заказчика.
 // Бинарные файлы и структуры используют little-endian раскладку Windows.

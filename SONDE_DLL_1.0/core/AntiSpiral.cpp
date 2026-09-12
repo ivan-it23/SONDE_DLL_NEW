@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "AntiSpiral.h"
 #include "Constants.h"
 #include "ErrorState.h"
@@ -177,11 +177,11 @@ int harmonics_clear(double *Sgn, double *Sgn_out, double *Sgn_out_m, int win) {
 
 int suppress_spiral(double *Sgn_in, double *Sgn_out, int length, int win_f, int win_ma) {
 	if (!Sgn_in || !Sgn_out) {
-		SetSondeLastError("anti_spiral requires non-null input and output arrays.");
+		SetSondeLastError("anti_spiral: не заданы входной или выходной массив.");
 		return err::kInvalidArgument;
 	}
 	if (length <= 0 || win_f < 6 || win_f > length || win_ma < 1 || win_ma > win_f) {
-		SetSondeLastError("anti_spiral requires length > 0, 6 <= win_f <= length and 1 <= win_ma <= win_f.");
+		SetSondeLastError("anti_spiral: требуется length > 0, 6 <= win_f <= length и 1 <= win_ma <= win_f.");
 		return err::kInvalidArgument;
 	}
 	std::fill(Sgn_out, Sgn_out + length, 0.0);

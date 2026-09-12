@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include <cstring>
 #include <fstream>
@@ -36,7 +36,7 @@ int scan_data_file(
 	int* frameHeaderSize,
 	uint32_t* dataSignature) {
 	if (!dataPath || !frameCount || !frameHeaderSize || !dataSignature) {
-		SetSondeLastError("get_data_file_info requires a path and three non-null output pointers.");
+		SetSondeLastError("get_data_file_info: не заданы путь к файлу данных или один из трёх выходных указателей.");
 		return err::kInvalidArgument;
 	}
 
@@ -45,7 +45,7 @@ int scan_data_file(
 	*dataSignature = 0;
 
 	if (!sonde_initialized || global_signature == 0) {
-		SetSondeLastError("sonde_set must complete successfully before validating a data file.");
+		SetSondeLastError("Перед проверкой файла данных необходимо успешно выполнить sonde_set.");
 		return err::kMetrologyNotInitialized;
 	}
 
@@ -54,15 +54,15 @@ int scan_data_file(
 		headerSize = kDevFrameHeaderSize;
 	}
 	else if (!has_extension(dataPath, ".bin")) {
-		SetSondeLastError("Unsupported data file extension; expected .DEV or .bin.");
-		if (debug == true) Test << "get_data_file_info unsupported data extension: " << dataPath << endl;
+		SetSondeLastError("Неподдерживаемое расширение файла данных: ожидается .DEV или .bin.");
+		if (debug == true) Test << "get_data_file_info: неподдерживаемое расширение файла данных: " << dataPath << endl;
 		return err::kDataFileExtension;
 	}
 
 	ifstream data(dataPath, ios::binary);
 	if (!data.is_open()) {
-		SetSondeLastError(std::string("Unable to open data file: ") + dataPath);
-		if (debug == true) Test << "get_data_file_info unable to open data file: " << dataPath << endl;
+		SetSondeLastError(std::string("Не удалось открыть файл данных: ") + dataPath);
+		if (debug == true) Test << "get_data_file_info: не удалось открыть файл данных: " << dataPath << endl;
 		return err::kDataFile;
 	}
 
@@ -72,14 +72,14 @@ int scan_data_file(
 	// Размер кадра прибора определяется по struct_size из сигнатуры первого
 	// кадра: старая прошивка -> 240 байт, новая (с амплитудным каналом) -> 320.
 	if (fileSize < static_cast<streamoff>(headerSize + sizeof(uint32_t))) {
-		SetSondeLastError("Data file is too small to contain a single frame.");
+		SetSondeLastError("Файл данных меньше одного кадра.");
 		return err::kDataFileLayout;
 	}
 	uint32_t probeSignature = 0;
 	data.seekg(headerSize, ios::beg);
 	data.read(reinterpret_cast<char*>(&probeSignature), sizeof(probeSignature));
 	if (!data) {
-		SetSondeLastError("Unable to read the data file signature.");
+		SetSondeLastError("Не удалось прочитать сигнатуру из файла данных.");
 		return err::kDataFileLayout;
 	}
 	const ID probeTool = get_sonde_id(probeSignature);
@@ -89,20 +89,20 @@ int scan_data_file(
 	const streamoff recordSize = frameDataSize + headerSize;
 	if (fileSize <= 0 || recordSize <= 0 || fileSize % recordSize != 0) {
 		std::ostringstream message;
-		message << "Invalid data file size " << fileSize << " bytes for record size "
-			<< recordSize << " bytes (header=" << headerSize
-			<< ", frame=" << frameDataSize << ").";
+		message << "Недопустимый размер файла данных: " << fileSize << " байт при размере записи "
+			<< recordSize << " байт (служебная часть " << headerSize
+			<< ", кадр " << frameDataSize << ").";
 		SetSondeLastError(message.str());
 		if (debug == true) {
-			Test << "get_data_file_info invalid data layout: size=" << fileSize
-				 << " record_size=" << recordSize << endl;
+			Test << "get_data_file_info: недопустимая раскладка файла, размер=" << fileSize
+				 << " размер записи=" << recordSize << endl;
 		}
 		return err::kDataFileLayout;
 	}
 
 	const unsigned long long count = static_cast<unsigned long long>(fileSize / recordSize);
 	if (count == 0 || count > (std::numeric_limits<uint32_t>::max)()) {
-		SetSondeLastError("Data file contains an unsupported number of frames.");
+		SetSondeLastError("Недопустимое число кадров в файле данных.");
 		return err::kDataFileLayout;
 	}
 
@@ -115,8 +115,8 @@ int scan_data_file(
 		GP_DATA current = {};
 		data.read(reinterpret_cast<char*>(&current), frameDataSize);
 		if (!data) {
-			SetSondeLastError("Data file is truncated while reading a GP_DATA frame.");
-			if (debug == true) Test << "get_data_file_info unable to read frame " << frame << endl;
+			SetSondeLastError("Файл данных оборван при чтении кадра GP_DATA.");
+			if (debug == true) Test << "get_data_file_info: не удалось прочитать кадр " << frame << endl;
 			return err::kDataFileLayout;
 		}
 
@@ -127,14 +127,14 @@ int scan_data_file(
 		if ((current.signature % 1000000u) != (firstSignature % 1000000u) ||
 			(current.signature % 1000000u) != (global_signature % 1000000u)) {
 			std::ostringstream message;
-			message << "Metrology/data signature mismatch at frame " << frame
-				<< ": metrology=" << global_signature
-				<< ", data=" << current.signature << ".";
+			message << "Несовпадение сигнатур метрологии и данных на кадре " << frame
+				<< ": метрология=" << global_signature
+				<< ", данные=" << current.signature << ".";
 			SetSondeLastError(message.str());
 			if (debug == true) {
-				Test << "get_data_file_info signature mismatch at frame " << frame
-					 << ": metrology=" << global_signature
-					 << " data=" << current.signature << endl;
+				Test << "get_data_file_info: несовпадение сигнатур на кадре " << frame
+					 << ": метрология=" << global_signature
+					 << " данные=" << current.signature << endl;
 			}
 			return err::kFrameSignatureMismatch;
 		}
@@ -145,7 +145,7 @@ int scan_data_file(
 					!std::isfinite(current.phase_smt[freq][tx]) ||
 					!std::isfinite(current.DELTA_PH[freq][tx])) {
 					std::ostringstream message;
-					message << "Data frame " << frame << " contains a non-finite value at F"
+					message << "Кадр данных " << frame << " содержит нечисловое значение: F"
 						<< freq << " T" << (tx + 1) << ".";
 					SetSondeLastError(message.str());
 					return err::kDataFileLayout;

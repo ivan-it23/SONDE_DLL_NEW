@@ -53,3 +53,6 @@ Desktop.ini
 !runtime/win-x64/**
 !runtime/win-Win32/
 !runtime/win-Win32/**
+
+# ---- Внутренняя документация: в репозиторий не выгружается ----
+*.md

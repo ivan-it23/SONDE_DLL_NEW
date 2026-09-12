@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include <windows.h>
 #include <string>
@@ -98,7 +98,7 @@ std::string BuildWeightsDir(const std::string& baseDir, int toolType, std::strin
 	if (searchDescription) {
 		std::ostringstream desc;
 		desc << JoinPath(root, "*-") << std::setw(2) << std::setfill('0') << prefix
-		     << "? (type+N_Tx " << prefix << ", modification ignored)";
+		     << "? (тип+число передатчиков " << prefix << ", модификация не учитывается)";
 		*searchDescription = desc.str();
 	}
 	if (!DirectoryExists(root))
@@ -123,7 +123,7 @@ std::string BuildWeightsDir(const std::string& baseDir, int toolType, std::strin
 		std::string missing;
 		if (!WeightsComplete(candidate, &missing)) {
 			if (firstIncomplete.empty())
-				firstIncomplete = candidate + " (missing " + missing + ")";
+				firstIncomplete = candidate + " (отсутствует " + missing + ")";
 			continue;
 		}
 		if (code == toolType) {
@@ -141,7 +141,7 @@ std::string BuildWeightsDir(const std::string& baseDir, int toolType, std::strin
 		return prefixMatch;
 
 	if (searchDescription && !firstIncomplete.empty())
-		*searchDescription += "; incomplete candidate: " + firstIncomplete;
+		*searchDescription += "; неполный каталог: " + firstIncomplete;
 	return std::string();
 }
 
@@ -171,7 +171,7 @@ int neuro_init(int toolType) {
 
 	std::string dllDir = GetDllDirectory();
 	if (dllDir.empty()) {
-		SetSondeLastError("Unable to determine the SONDE DLL directory for neural dependencies.");
+		SetSondeLastError("Не удалось определить каталог библиотеки SONDE_DLL_1.0.dll для поиска нейросетевых зависимостей.");
 		return err::kNeuroDllNotLoaded;
 	}
 	std::string neuroPath = dllDir + config::kNeuroDllName;
@@ -180,10 +180,10 @@ int neuro_init(int toolType) {
 		LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 	if (candidateDll == NULL) {
 		std::ostringstream message;
-		message << "Unable to load neural runtime '" << neuroPath
-			<< "' (Win32 error " << GetLastError() << ").";
+		message << "Не удалось загрузить нейросетевую библиотеку '" << neuroPath
+			<< "' (ошибка Win32 " << GetLastError() << ").";
 		SetSondeLastError(message.str());
-		if (debug == true) Test << "sonde_set unable to load NEURO_TEST.dll" << endl;
+		if (debug == true) Test << "sonde_set: не удалось загрузить NEURO_TEST.dll" << endl;
 		return err::kNeuroDllNotLoaded;
 	}
 
@@ -196,8 +196,8 @@ int neuro_init(int toolType) {
 	PFN_GeoPredictor_GetLastError candidateLastError =
 		(PFN_GeoPredictor_GetLastError)GetProcAddress(candidateDll, config::kNeuroLastErrorFn);
 	if (!candidateCreate || !candidatePredict || !candidateDestroy) {
-		SetSondeLastError("NEURO_TEST.dll does not export the required predictor functions.");
-		if (debug == true) Test << "sonde_set unable to get neuro functions" << endl;
+		SetSondeLastError("В NEURO_TEST.dll не найдены требуемые функции предиктора.");
+		if (debug == true) Test << "sonde_set: не найдены функции нейросети" << endl;
 		FreeLibrary(candidateDll);
 		return err::kNeuroFuncNotFound;
 	}
@@ -206,28 +206,28 @@ int neuro_init(int toolType) {
 	std::string weightsDir = BuildWeightsDir(dllDir, toolType, &searchDescription);
 	if (weightsDir.empty()) {
 		std::ostringstream message;
-		message << "Neural weights for signature " << toolType
-			<< " were not found. Expected a complete directory whose trailing code matches the tool type and transmitter count (first two digits '"
+		message << "Не найдены веса нейросети для типа прибора " << toolType
+			<< ". Рядом с SONDE_DLL_1.0.dll должен находиться полный каталог, имя которого завершается кодом с тем же типом прибора и числом передатчиков (первые две цифры '"
 			<< (toolType / 10)
-			<< "', modification ignored) next to the SONDE DLL. Search: " << searchDescription << ".";
+			<< "'; модификация не учитывается). Поиск: " << searchDescription << ".";
 		SetSondeLastError(message.str());
 		if (debug == true) {
-			Test << "sonde_set no neural weights for tool type " << toolType
-			     << ", search: " << searchDescription << endl;
+			Test << "sonde_set: нет весов нейросети для типа прибора " << toolType
+			     << ", поиск: " << searchDescription << endl;
 		}
 		FreeLibrary(candidateDll);
 		return err::kNeuroWeightsNotFound;
 	}
 	void* candidatePredictor = candidateCreate(weightsDir.c_str());
 	if (candidatePredictor == NULL) {
-		std::string detail = "Unable to create neural predictor from weights directory '" + weightsDir + "'.";
+		std::string detail = "Не удалось создать нейросетевой предиктор из каталога весов '" + weightsDir + "'.";
 		if (candidateLastError && candidateLastError())
-			detail += std::string(" Neural runtime: ") + candidateLastError();
+			detail += std::string(" Сообщение нейросетевой библиотеки: ") + candidateLastError();
 		SetSondeLastError(detail);
 		if (debug == true) {
-			Test << "sonde_set unable to create neuro predictor, weights dir: " << weightsDir << endl;
+			Test << "sonde_set: не удалось создать нейросетевой предиктор, каталог весов: " << weightsDir << endl;
 			if (candidateLastError)
-				Test << "neuro error: " << candidateLastError() << endl;
+				Test << "ошибка нейросети: " << candidateLastError() << endl;
 		}
 		FreeLibrary(candidateDll);
 		return err::kNeuroCreateFailed;
@@ -244,9 +244,9 @@ int neuro_init(int toolType) {
 	activeToolType = toolType;
 
 	if (debug == true) {
-		Test << "neuro_init: DLL loaded from " << neuroPath << endl;
-		Test << "neuro_init: weights dir " << weightsDir << endl;
-		Test << "neuro_init: predictor created OK" << endl;
+		Test << "neuro_init: библиотека загружена из " << neuroPath << endl;
+		Test << "neuro_init: каталог весов " << weightsDir << endl;
+		Test << "neuro_init: предиктор создан" << endl;
 	}
 	return err::kOk;
 }
@@ -259,11 +259,11 @@ bool neuro_available() {
 // Предсказание нейросети через GeoPredictor_Predict: массив входов -> выходов.
 int neuro_predict(const float* inputs, float* outputs) {
 	if (!inputs || !outputs) {
-		SetSondeLastError("Neural predictor input and output pointers must not be null.");
+		SetSondeLastError("Не заданы входной или выходной массив нейросетевого предиктора.");
 		return err::kInvalidArgument;
 	}
 	if (!neuro_available()) {
-		SetSondeLastError("Neural predictor is not initialized for the current metrology.");
+		SetSondeLastError("Нейросетевой предиктор не инициализирован для загруженной метрологии.");
 		return err::kNeuroNotInitialized;
 	}
 	return fnGeoPredictor_Predict(hNeuroPredictor, inputs, outputs);
